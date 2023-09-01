@@ -26,7 +26,7 @@ def _newBranch(
     
     ## check whether the stableHead is valid
     if db.get(stableHead) is None:
-        raise ValueError("stableHead is not valid")
+        raise ValueError("stableHead cannot be found in database")
     
     ## check whether the parentBranch is valid
     if isinstance(parentBranch, bytes):
