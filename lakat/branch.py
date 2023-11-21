@@ -3,15 +3,33 @@ import datetime
 from typing_extensions import Literal
 from collections.abc import Mapping
 from db.database import DB
+from utils.serialize import Serializer
+from utils.encoding import _serializeAndMultihash
 from lakat.timestamp import getTimestamp
 from lakat.submit import _newSubmit
 
 
 
+def __checkStableHeadExists(db: DB, stableHead: bytes) -> None:
+    ## check whether the stableHead is valid
+    if db.get(stableHead) is None:
+        raise ValueError("stableHead cannot be found in database")
 
-def _newBranch(
+def __checkCorrectBranchType(branchType: Literal["proper", "twig", "sprout"]) -> None:
+    ## check whether the branchType is valid
+    if branchType not in ["proper", "twig", "sprout"]:
+        raise ValueError("branchType must be one of 'proper', 'twig', 'sprout'")
+
+
+def __checkValidParentBranch(db: DB, parentBranch: bytes) -> None:
+    ## check whether the parentBranch is valid
+    if db.get(parentBranch) is None:
+        raise ValueError("parentBranch is not valid")
+
+
+def __newBranch(
         db: DB,
-        # creator: bytes,
+        serializer : Serializer,
         branchType: Literal["proper", "twig", "sprout"],
         parentBranch: bytes or None,
         stableHead: bytes,
@@ -20,22 +38,12 @@ def _newBranch(
         consensusProps: Mapping[str, str],
         tokenProps: Mapping[str, str]) -> bytes:
     
-    ## check whether the branchType is valid
-    if branchType not in ["proper", "twig", "sprout"]:
-        raise ValueError("branchType must be one of 'proper', 'twig', 'sprout'")
-    
-    ## check whether the stableHead is valid
-    if db.get(stableHead) is None:
-        raise ValueError("stableHead cannot be found in database")
-    
-    ## check whether the parentBranch is valid
-    if isinstance(parentBranch, bytes):
-        if db.get(parentBranch) is None:
-            raise ValueError("parentBranch is not valid")
     
     ## get the consensusRoot
-    encodedConsensusProps = marshal(consensusProps)
-    consensusRoot = multihash(encodedConsensusProps)
+    (
+        serializedConsensusProps, 
+        consensusRoot
+    ) = _serializeAndMultihash(consensusProps)
 
     config = {
         "branchType": branchType,
@@ -43,8 +51,12 @@ def _newBranch(
         "acceptedProofs": acceptedProofs,
         "consensusRoot": consensusRoot
         }
-    encodedConfig = marshal(config)
-    configRoot = multihash(encodedConfig)
+    
+    (
+        serializedConfig,
+        configRoot
+    ) = _serializeAndMultihash(config)
+
 
     if (tokenProps.get('exists') != True): 
         token = None,
@@ -60,11 +72,13 @@ def _newBranch(
             raise ValueError("tokenProps must have an address set to a valid address")
         if tokenProps.get('deploymentHash') is None:
             raise ValueError("tokenProps must have a deploymentHash set to a valid deploymentHash")
-        encodedTokenProps = marshal(tokenProps)
-        tokenRoot = multihash(encodedTokenProps)
+        
+        serializedTokenProps = serializer.serialize(tokenProps)
+        tokenRoot = multihash(serializedTokenProps)
+        
         token = tokenRoot
         ## write token into database
-        db.put(bytes(tokenRoot, 'utf-8'), encodedTokenProps)
+        db.put(bytes(tokenRoot, 'utf-8'), serializedTokenProps)
 
     timestamp = getTimestamp()
 
@@ -102,23 +116,17 @@ def _newBranch(
 
 
 
-def createGenesisBranch(
+def __createGenesisBranch(
         db: DB,
+        submitHash: bytes,
         branchType: Literal["proper", "twig"],
         acceptConflicts: bool, 
         acceptedProofs: Mapping[str, str],
         consensusProps: Mapping[str, str],
         tokenProps: Mapping[str, str]):
-    
-    ## create null submit
 
-    submitHash = _newSubmit(
-        db=db,
-        contentkey='Hallo',
-        content='Jooo'
-    )
 
-    _newBranch(
+    __newBranch(
         db=db,
         branchType=branchType,
         parentBranch=None,
