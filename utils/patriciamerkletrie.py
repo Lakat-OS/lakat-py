@@ -17,7 +17,7 @@ def get_first_nibble(byte_string):
     return byte_string[0] >> 4
 
 def compact_encode(hexarray: List[int]) -> bytes:
-    term = 1 if hexarray[-1] == 16 else 0
+    term = 1 if hexarray[-1] == 16 else 0   
     if term: 
         hexarray = hexarray[:-1]
     oddlen = len(hexarray) % 2
