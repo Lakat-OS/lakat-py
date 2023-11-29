@@ -2,8 +2,10 @@ import plyvel
 from collections.abc import Mapping
 from typing import List, Tuple
 from typing_extensions import Literal
+from db.db_interface import DB_BASE
 
-class DB:
+
+class DB(DB_BASE):
 
     def __init__(self, name: str='lakat', create: bool=True):
         self.name = name 

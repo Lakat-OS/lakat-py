@@ -1,0 +1,1 @@
+DB_NAME = "lakat_test_1"
