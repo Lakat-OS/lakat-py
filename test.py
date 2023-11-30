@@ -9,11 +9,14 @@ from setup import db
 from setup import trie
 from lakat.submit import content_submit
 
+create_key_pair_flag = False
 
 if __name__ == '__main__':
 
+
     key_file_prefix="lakat"
-    private_key_path, public_key_path = create_key_pair(key_file_prefix=key_file_prefix)
+    if create_key_pair_flag:
+        private_key_path, public_key_path = create_key_pair(key_file_prefix=key_file_prefix)
 
     # retrieve
     pub_key = get_public_key_from_file(key_file_prefix=key_file_prefix)
@@ -45,8 +48,15 @@ if __name__ == '__main__':
         "refs": serialize([]) 
     }))
 
-    content_submit(contents=contents, branchId=1, proof=b'', msg='test', create_branch=False)
+    res = content_submit(
+        contents=contents, 
+        branchId=None, 
+        proof=b'', 
+        msg='test', 
+        create_branch=True)
     
+    print('res', res)
+    # db.close()
     # create a branch
 
     # print('queries', queries)

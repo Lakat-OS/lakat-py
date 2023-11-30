@@ -1,6 +1,6 @@
 import hashlib
 import binascii
-from utils.encode.hashing import hash
+from utils.encode.hashing import lakathash
 from utils.serialize import serialize
 
 
@@ -30,7 +30,7 @@ class TrieNode:
         # Combine the hash of the value with the hashes of the children
         children_hash = ''.join(child.hash for child in self.children.values() if child.hash)
         combined = (children_hash + (self.value if self.value else '') + (self.interaction if self.interaction else '')).encode('utf-8')
-        self.hash = hash(combined)
+        self.hash = lakathash(combined)
 
     def __repr__(self):
         return f"TrieNode({self.hash[:10]})"
@@ -185,9 +185,8 @@ class MerkleTrie:
     def persist(self, db):
         trie_representation = self.get_json_representation()
         ser_trie_representation = serialize(trie_representation)
-        hash(ser_trie_representation)
         db.put(
-            hash(ser_trie_representation).encode('utf-8'), 
+            lakathash(ser_trie_representation).encode('utf-8'), 
             ser_trie_representation)
 
 
