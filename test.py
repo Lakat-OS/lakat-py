@@ -64,6 +64,7 @@ if __name__ == '__main__':
         if value=="ATOMIC" and only_one_atomic:
             only_one_atomic = 0
             # print('ATOMIC', unserialize(db.get(key.encode())))
+            data = "The full Introduction\n\nSome more text."
             data_dict = {
                 "schema_id": DEFAULT_ATOMIC_BUCKET_SCHEMA,
                 "public_key": pub_key,
