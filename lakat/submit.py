@@ -56,7 +56,7 @@ def content_submit(contents: List[bytes], branchId: bytes, proof: bytes, msg: st
         if serialized_branch_data is None:
             raise Exception("Branch does not exist")
         branch_data = unserialize(serialized_branch_data)
-        parent_submit_id=branch_data["stableHead"],
+        parent_submit_id=branch_data["stableHead"]
     
     submit = SUBMIT(
         parent_submit_id=parent_submit_id,

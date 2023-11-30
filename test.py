@@ -10,9 +10,12 @@ from setup import trie
 from lakat.submit import content_submit
 
 create_key_pair_flag = False
-
+just_delete_db = False
 if __name__ == '__main__':
 
+    if just_delete_db:
+        db.close()
+        exit()
 
     key_file_prefix="lakat"
     if create_key_pair_flag:
@@ -55,7 +58,33 @@ if __name__ == '__main__':
         msg='test', 
         create_branch=True)
     
-    print('res', res)
+    only_one_atomic = 1
+    contents = list()
+    for key, value in res.items():
+        if value=="ATOMIC" and only_one_atomic:
+            only_one_atomic = 0
+            # print('ATOMIC', unserialize(db.get(key.encode())))
+            data_dict = {
+                "schema_id": DEFAULT_ATOMIC_BUCKET_SCHEMA,
+                "public_key": pub_key,
+                "parent_bucket": key,
+                "data": serialize(data),
+                "refs": serialize([])
+            }
+            contents.append(serialize(data_dict))
+
+    for key, value in res.items():
+        if value == 'BRANCH':
+            # print('BRANCH', unserialize(db.get(key.encode())))
+            # print('Submit another content')
+            res2 = content_submit(
+                contents=contents, 
+                branchId=key.encode(), 
+                proof=b'', 
+                msg='another test', 
+                create_branch=False)
+            print('res2', res2)
+    
     # db.close()
     # create a branch
 
