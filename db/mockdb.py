@@ -46,6 +46,12 @@ class MOCK_DB(DB_BASE):
                 object_type = "trie"
             elif "schema_id" in unserialized:
                 object_type = "bucket_" + str(unserialized["schema_id"])
+            elif "parent_submit_id" in unserialized:
+                object_type = "submit"
+            elif "parentBranch" in unserialized:
+                object_type = "branch"
+            elif "changesTrace" in unserialized:
+                object_type = "trace"
             else:
                 object_type = "other"
 

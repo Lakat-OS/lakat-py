@@ -6,9 +6,10 @@ class SUBMIT:
         self.submit_trace=submit_trace
 
 class SUBMIT_TRACE:
-    def __init__(self, changesTrace, pullRequests, reviewsTrace, socialTrace, sproutSelectionTrace):
+    def __init__(self, changesTrace, pullRequests, nsRegistry, reviewsTrace, socialTrace, sproutSelectionTrace):
         self.changesTrace=changesTrace,
         self.pullRequests=pullRequests,
         self.reviewsTrace=reviewsTrace,
+        self.nsRegistry=nsRegistry
         self.socialTrace=socialTrace,
         self.sproutSelectionTrace=sproutSelectionTrace

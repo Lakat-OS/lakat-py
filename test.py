@@ -3,10 +3,10 @@ from utils.signing.sign import get_public_key_from_file
 from utils.serialize import (serialize, unserialize)
 # import DB
 
-from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
+from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA, BUCKET_ID_TYPE_NO_REF
 
-from setup import db
-from setup import trie
+from db_trie import db
+from db_trie import trie
 from lakat.submit import content_submit
 
 create_key_pair_flag = False
@@ -42,7 +42,11 @@ if __name__ == '__main__':
         }
         contents.append(serialize(data_dict))
     
-    molecular_data = [0,1,2]
+    molecular_data = [
+        {"id":0, "type": BUCKET_ID_TYPE_NO_REF},
+        {"id":1, "type": BUCKET_ID_TYPE_NO_REF},
+        {"id":2, "type": BUCKET_ID_TYPE_NO_REF}]
+    
     contents.append(serialize({
         "schema_id": DEFAULT_MOLECULAR_BUCKET_SCHEMA,
         "public_key": pub_key,

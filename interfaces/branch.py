@@ -1,10 +1,11 @@
 from typing import List
 
 class BRANCH:
-    def __init__(self, parentBranch: bytes or None, branchConfig: bytes, stableHead, sprouts: List[bytes], sproutSelection, branchToken, timestamp):
+    def __init__(self, parentBranch: bytes or None, branchConfig: bytes, stableHead, nameResolution, sprouts: List[bytes], sproutSelection, branchToken, timestamp):
         self.parentBranch = parentBranch
         self.branchConfig = branchConfig
         self.stableHead = stableHead
+        self.nameResolution = nameResolution
         self.sprouts = sprouts
         self.sproutSelection = sproutSelection
         self.branchToken = branchToken

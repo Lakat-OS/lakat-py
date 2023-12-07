@@ -170,7 +170,7 @@ class MerkleTrie:
                 result[sub_path] = self._get_json_from_node(node, "")
             if current_node.value is not None:
                 # Add the value at this junction
-                result[current_path] = ""
+                result[current_path] = current_node.value
             return result
         else:
             # Continue building the path
@@ -188,6 +188,10 @@ class MerkleTrie:
         db.put(
             lakathash(ser_trie_representation).encode('utf-8'), 
             ser_trie_representation)
+        
+    
+    def get_hexlified(self, key: str) -> str:
+        return hexlify(key)
 
 
 # class MerkleTrieRevertible(MerkleTrie):
