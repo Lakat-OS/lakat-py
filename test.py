@@ -88,7 +88,7 @@ if __name__ == '__main__':
                 proof=b'', 
                 msg='another test', 
                 create_branch=False)
-            print('res2', res2)
+            # print('res2', res2)
     
     # db.close()
     # create a branch

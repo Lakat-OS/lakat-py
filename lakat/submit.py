@@ -33,9 +33,7 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     ## Get the name resolution bucket id
     nr_bckt_id = None
     if branchId and not create_branch:
-        print(">>> Trying to retrieve branchId (branchId = targetBranch)")
         current_branch_state_id = trie.retrieve_value(branchId)
-        print('target branch:', branchId, ". type: ", type(branchId), '. current branch id:', current_branch_state_id, ". type:", type(current_branch_state_id))
         serialized_branch_data = db.get(bytes(current_branch_state_id, 'utf-8'))
         if serialized_branch_data is None:
             raise Exception("Branch does not exist")
@@ -45,12 +43,12 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     db_submits = []
     response = dict()
     # first create buckets from the atomic contents
-    print(f"The nameResolution is {nr_bckt_id} and of type: {type(nr_bckt_id)}")
     buckets = getBucketContentIdsAndNameRegistrations(
         contents=contents, 
         nameResolutionId=nr_bckt_id)
     all_bucket_submits = getDBSubmitsFromBuckets(buckets)
     db_submits += all_bucket_submits
+
     response.update({b["id"]: "ATOMIC" for b in buckets["buckets"][DEFAULT_ATOMIC_BUCKET_SCHEMA]})
     response.update({b["id"]: "MOLECULAR" for b in buckets["buckets"][DEFAULT_MOLECULAR_BUCKET_SCHEMA]})
     
@@ -147,14 +145,9 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
         trie_insertions.append(dict(
             key=branchId,
             value=branch_dict["id"]))
-
-    print('buckets["new_registrations"]: ', buckets["new_registrations"])
     
     if buckets["new_registrations"]:
-        print(">>> INSERT New Name registration")
         nameResolutionDecoded = trie.retrieve_value(nameResolutionBucketId)
-        print(f"nameResolutionBucket id is {nameResolutionBucketId} and its value is {nameResolutionDecoded} and the type is {type(nameResolutionDecoded)}")
-        print(f"The hexlified version is {hexlify(nameResolutionBucketId)}.")
         if not nameResolutionDecoded:
             nr_bucket_data = dict()
         else:
@@ -189,7 +182,6 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     ])
 
     # update the trie insertions.
-    print('trie_insertions', trie_insertions)
     trie.insert_many([
         (ins["key"], ins["value"])
         for ins in trie_insertions])

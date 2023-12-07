@@ -9,7 +9,6 @@ def check_schema(data: bytes, schema: int)-> bool:
     errcode = "0"
     if schema==DEFAULT_MOLECULAR_BUCKET_SCHEMA:
         unserialized_data = unserialize(data)
-        print('unserialized_data',unserialized_data)
         if not isinstance(unserialized_data, dict):
             errcode = "1"
             msg = "Not Dict"

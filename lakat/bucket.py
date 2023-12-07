@@ -73,7 +73,6 @@ def getBucketContentIdsAndNameRegistrations(
     molecularBucketIndices = list()
     newRegistrations = list()
     for index, content in enumerate(contents):
-        print('index', index)
         # unpack content
         content_dict = unserialize(content)
         # check for schema id
@@ -122,7 +121,6 @@ def getBucketContentIdsAndNameRegistrations(
         molecularBuckets.append(
             {"id": bucketId, "data": bucketData, "index": index})
 
-        print('content_dict', content_dict)
         content_data_dict = unserialize(content_dict["data"])
         if content_data_dict["name"]:
             # If there is a name given in the molecular bucket it should be registered.
