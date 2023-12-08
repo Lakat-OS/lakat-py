@@ -109,27 +109,23 @@ def analyze_differences(text1_parts: List[Part], text2_parts: List[Part], simila
     deleted, added, rearranged, modified = [], [], [], []
 
 
-    # Identify deleted and added parts
-    for p in text1_parts:
-        q, i, score = find_similar_part_in_second(p, text2_parts, similarity_threshold=similarity_threshold, 
+    # Identify deleted, rearranged, modified
+    for i, p in enumerate(text1_parts):
+        q, j, score = find_similar_part_in_second(p, text2_parts, similarity_threshold=similarity_threshold, 
         zero_level_similarity_threshold=zero_level_similarity_threshold)
         if not q:
-            deleted.append({"part":p, "max_similarity": score, "new_index": i})
-    for q in text2_parts:
+            deleted.append({"part":p, "max_similarity": score, "most_similar_index": j})
+        if q:
+            if p.content == q.content:
+                rearranged.append({"old_index":i, "new_index": j})
+            else:
+                modified.append({"old_index":i, "new_index": j, "score": score})
+        
+    # identify added
+    for j, q in enumerate(text2_parts):
         p, i, score = find_similar_part_in_first(text1_parts, q, similarity_threshold=similarity_threshold,
         zero_level_similarity_threshold=zero_level_similarity_threshold)
         if not p:
-            added.append({"part":q, "max_similarity": score, "old_index": i})
-
-    # Identify rearranged and modified parts
-    for i, p in enumerate(text1_parts):
-        
-        q, j, score = find_similar_part_in_second(p, text2_parts, similarity_threshold=similarity_threshold, 
-        zero_level_similarity_threshold=zero_level_similarity_threshold)
-        if q:
-            if i != j:
-                rearranged.append({"old_index":i, "new_index": j, "score": score})
-            if p.content != q.content:
-                modified.append({"old_index":i, "new_index": j, "score": score})
+            added.append({"part":q, "max_similarity": score, "most_similar_index": i})
 
     return {"deleted": deleted, "added": added, "rearranged": rearranged, "modified": modified}
