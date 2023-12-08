@@ -9,6 +9,8 @@ from config.bucket_cfg import (
     DEFAULT_PULLREQUEST_BUCKET_SCHEMA,
     DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA)
 from utils.schemata.bucket import check_schema
+from setup.db_trie import db, trie
+
 
 def prepare_atomic_bucket(content_dict: Dict[str, bytes]) -> bytes:
     bucket = BUCKET(
@@ -88,8 +90,10 @@ def getBucketContentIdsAndNameRegistrations(
             # append data for database put-query.
             atomicBuckets.append(
                 {"id": bucketId, "data": bucketData, "index": index})
+        
         elif content_dict["schema_id"] == DEFAULT_MOLECULAR_BUCKET_SCHEMA:
             molecularBucketIndices.append(index)
+        
         elif content_dict["schema_id"] == DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA:
             # prepare name_space bucket for submission
             bucketId, bucketData = prepare_namespace_bucket(content_dict)
@@ -145,3 +149,14 @@ def getBucketContentIdsAndNameRegistrations(
 
 def getDBSubmitsFromBuckets(buckets: Dict[str, List[Dict[str, Union[int, bytes]]]]) -> List[Dict[str, Union[int, bytes]]]:
     return [v for bckt in buckets["buckets"].values() for v in bckt]
+
+
+def getNameRegistryBucketId(branchId: str, create_branch: bool) -> None or str:
+    if branchId and not create_branch:
+        current_branch_state_id = trie.retrieve_value(branchId)
+        serialized_branch_data = db.get(bytes(current_branch_state_id, 'utf-8'))
+        if serialized_branch_data is None:
+            raise Exception("Branch does not exist")
+        branch_data = unserialize(serialized_branch_data)
+        return branch_data["nameResolution"]
+    return None

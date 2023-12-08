@@ -8,7 +8,8 @@ from config.bucket_cfg import (
 from config.dev_cfg import DEV_ENVIRONMENT
 from lakat.bucket import (
     getBucketContentIdsAndNameRegistrations,
-    getDBSubmitsFromBuckets)
+    getDBSubmitsFromBuckets,
+    getNameRegistryBucketId)
 from lakat.proof import checkContributorProof
 from utils.serialize import serialize, unserialize
 from utils.encode.hashing import lakathash
@@ -16,48 +17,125 @@ from lakat.timestamp import getTimestamp
 from lakat.trie import hexlify
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
-from db_trie import db
-from db_trie import trie
+from setup.db_trie import db
+from setup.db_trie import trie
 
 
-def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]], branchId: bytes, proof: bytes, msg: str, create_branch):
+def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]], branchId: str, proof: bytes, msg: str, create_branch):
 
-    # serialized_branch_data = db.get(bytes(branchId, 'utf-8'))
-    # if serialized_branch_data is None:
-    #     raise Exception("Branch does not exist")
+    #### CHECK CONTRIBUTOR PROOF #####################
     if not create_branch:
-        success, errmsg, errcode = checkContributorProof(branchId, proof)
+        success, emsg, code = checkContributorProof(branchId, proof)
         if not success:
-            raise Exception(f"ERR: {errcode}! {errmsg}")
-        
-    ## Get the name resolution bucket id
-    nr_bckt_id = None
-    if branchId and not create_branch:
-        current_branch_state_id = trie.retrieve_value(branchId)
-        serialized_branch_data = db.get(bytes(current_branch_state_id, 'utf-8'))
-        if serialized_branch_data is None:
-            raise Exception("Branch does not exist")
-        branch_data = unserialize(serialized_branch_data)
-        nr_bckt_id = branch_data["nameResolution"]
+            raise Exception(f"ERR: {code}! {emsg}")
+
+
+    #### GET THE NAME RESOLUTION BUCKET ID ############
+    nr_bckt_id = getNameRegistryBucketId(branchId, create_branch)
     
-    db_submits = []
-    response = dict()
-    # first create buckets from the atomic contents
+
+    #### INITIALIZATION ###############################
+    db_submits = []          # list of database submits
+    response = dict()        # dict of response data
+    trie_insertions = list() # list of trie insertions
+
+
+    #### PREPARE AND CREATE BUCKET DATA ###############
+    # Cast the contents into bucket data.
+    # buckets are dicts with "data" and "new_registrations" keys
+    # The "data" key contains a dict where the keys are the schemata
+    # and the values are all buckets of that given schema_id
+    # The "new_registrations" key contains a list of new
+    # name registrations. Each entry contains a dict with
+    # the bucket id (key="id") and the bucket name (key="name").
     buckets = getBucketContentIdsAndNameRegistrations(
         contents=contents, 
         nameResolutionId=nr_bckt_id)
-    all_bucket_submits = getDBSubmitsFromBuckets(buckets)
-    db_submits += all_bucket_submits
-
-    response.update({b["id"]: "ATOMIC" for b in buckets["buckets"][DEFAULT_ATOMIC_BUCKET_SCHEMA]})
-    response.update({b["id"]: "MOLECULAR" for b in buckets["buckets"][DEFAULT_MOLECULAR_BUCKET_SCHEMA]})
+    # At this point one may only add a new registration for 
+    # molecular buckets that are submitted in the same submit.
+    # TODO: That should be relaxed. 
     
     
-    ## GET the name resolution buckets
+    #### IN CASE A NAME REGISTRY WAS SUBMITTED #######
+    # store the name registry buckets (either a list with one 
+    # or None) into the local variable ns_bckts
     ns_bckts = buckets["buckets"].get(DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA)
 
+
+    #### GET THE SUBMIT TRACE ########################
+    submit_trace_dict = getSubmitTrace(buckets, ns_bckts)
+
+
+    #### GET THE NEW SUBMIT OBJECT ##################
+    submit_dict = getSubmitObject(branchId, create_branch, msg, submit_trace_dict)
+
+
+    #### UPDATE THE BRANCH STATE ####################
+    (branch_dict, 
+     nameResolutionBucketId,
+     new_trie_insertion,
+     branch_response) = createPrepareOrUpdateBranch(branchId, create_branch, submit_dict["id"], ns_bckts)
+
+
+    #### GET NEW NAME REGISTRATIONS ##################
+    new_registration, nr_trie_bucket_data = nameRegistration(
+        buckets, nameResolutionBucketId)
+
+
+    #### STORE THE BUCKET DATA IN LOCAL VARIABLES ####
+    # converts the buckts format into database submittable format
+    db_submits.extend(getDBSubmitsFromBuckets(buckets))
+    db_submits.append(submit_trace_dict)
+    db_submits.append(submit_dict)
+    db_submits.append(branch_dict)
+    # Store the bucket ids and their type in the response
+    response.update({
+        b["id"]: "ATOMIC" 
+        for b in buckets["buckets"][DEFAULT_ATOMIC_BUCKET_SCHEMA]})
+    response.update({
+        b["id"]: "MOLECULAR" 
+        for b in buckets["buckets"][DEFAULT_MOLECULAR_BUCKET_SCHEMA]})
+    response.update({submit_trace_dict["id"]: "SUBMIT_TRACE"})
+    response.update({submit_dict["id"]: "SUBMIT"})
+    response.update(branch_response)
+    # Trie insertions
+    trie_insertions.append(new_trie_insertion)
+    if new_registration:
+        trie_insertions.append(nr_trie_bucket_data)
+    # Interaction Tre insertions
+    interaction_trie_insertions = getInteractionInsertions(interactions)
+
+
+    #### SUBMISSION OF DATA TO DB ##################
+    DBSubmission(db_submits)
+
+    
+    ## TRIE UPDATE ######
+    # TODO: Is it not a problem for the rootHash that the values are all ""
+    ## put all the new buckets into the try and the new insertions
+    trie.insert_many([
+        (bckt["id"], "") for bckt in db_submits])
+    # update the trie insertions.
+    trie.insert_many([
+        (ins["key"], ins["value"]) for ins in trie_insertions])
+    # interaction values update
+    trie.update_many_interactions([
+        (ins["key"], ins["value"])
+        for ins in interaction_trie_insertions])
+
+    # if DEV_ENVIRONMENT == "LOCAL":
+    trie.persist(db, interaction=False)
+    trie.persist(db, interaction=True)
+
+    return response
+
+
+def getSubmitTrace(buckets, ns_bckts: list or None):
+
     submit_trace = SUBMIT_TRACE(
-        changesTrace=[bckt["id"] for bckt in all_bucket_submits],
+        changesTrace=[
+            bckt["id"] 
+            for bckt in getDBSubmitsFromBuckets(buckets)],
         pullRequests=[rq["id"] for rq in buckets["buckets"].get(DEFAULT_PULLREQUEST_BUCKET_SCHEMA)],
         nsRegistry={
             "ns_bucket": (ns_bckts[0]["id"] if ns_bckts else None),
@@ -68,11 +146,11 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     )
 
     serialized_submit_trace = serialize(submit_trace.__dict__)
-    submit_trace_dict = {"id": lakathash(serialized_submit_trace), "data": serialized_submit_trace}
-    db_submits.append(submit_trace_dict)
-    response.update({submit_trace_dict["id"]: "SUBMIT_TRACE"})
+    return {"id": lakathash(serialized_submit_trace), "data": serialized_submit_trace}
 
-    ## GET THE PARENT SUBMIT ID
+
+def getSubmitObject(branchId, create_branch, msg, submit_trace_dict):
+    
     if create_branch and not branchId:
         # genesis submit
         parent_submit_id=None
@@ -91,19 +169,22 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     )
     
     serialized_submit = serialize(submit.__dict__)
-    submit_dict = {"id": lakathash(serialized_submit), "data": serialized_submit}
-    db_submits.append(submit_dict)
-    response.update({submit_dict["id"]: "SUBMIT"})
+    
+    return {
+        "id": lakathash(serialized_submit), 
+        "data": serialized_submit}
 
-    trie_insertions = list()
+
+# TODO: separate out those two cases with branch and without branch creation
+def createPrepareOrUpdateBranch(branchId, create_branch, submit_id, ns_bckts):
+
     # create branch if needed
-    nameResolutionBucketId = None
     if create_branch:
         ## NOTE: branchId might be none
         branch = BRANCH(
             parentBranch=branchId,
             branchConfig=bytes("", 'utf-8'),
-            stableHead=submit_dict["id"],
+            stableHead=submit_id, # submit_dict["id"],
             nameResolution=ns_bckts[0]["id"] if ns_bckts else None,
             sprouts=[],
             sproutSelection=[],
@@ -113,9 +194,14 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
         nameResolutionBucketId = branch.nameResolution
         serialized_branch = serialize(branch.__dict__)
         branch_dict = {"id": lakathash(serialized_branch), "data": serialized_branch}
-        db_submits.append(branch_dict)
-        response.update({branch_dict["id"]: "BRANCH"})
-        trie_insertions.append(dict(key=branch_dict["id"], value=branch_dict["id"]))
+        trie_insertion = dict(
+            key=branch_dict["id"], value=branch_dict["id"])
+        branch_response = {branch_dict["id"]: "BRANCH"}
+        return (
+            branch_dict, 
+            nameResolutionBucketId, 
+            trie_insertion, 
+            branch_response)
     else:
         # update the branch:
         # add the nameResolution to the branch if there is one
@@ -132,7 +218,7 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
         
         branch_data = unserialize(serialized_branch_data)
         branch_params.update(branch_data)
-        branch_params.update({"stableHead": submit_dict["id"]})
+        branch_params.update({"stableHead": submit_id})
         if ns_bckts:
             branch_params.update({"nameResolution": ns_bckts[0]["id"]})
         branch_params.update({"timestamp":getTimestamp()})
@@ -140,12 +226,18 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
         nameResolutionBucketId = branch.nameResolution
         serialized_branch = serialize(branch.__dict__)
         branch_dict = {"id": lakathash(serialized_branch), "data": serialized_branch}
-        db_submits.append(branch_dict)
-        response.update({branch_dict["id"]: "BRANCH UPDATE"})
-        trie_insertions.append(dict(
-            key=branchId,
-            value=branch_dict["id"]))
+        trie_insertion = dict(
+            key=branchId, value=branch_dict["id"])
+        branch_response = {branch_dict["id"]: "BRANCH"}
+        return (
+            branch_dict, 
+            nameResolutionBucketId, 
+            trie_insertion, 
+            branch_response)
     
+
+def nameRegistration(buckets, nameResolutionBucketId):
+
     if buckets["new_registrations"]:
         nameResolutionDecoded = trie.retrieve_value(nameResolutionBucketId)
         if not nameResolutionDecoded:
@@ -157,14 +249,20 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
             bckt["id"]: bckt["name"] 
             for bckt in buckets["new_registrations"]})
         
-        trie_insertions.append(
-            dict(key=nameResolutionBucketId, 
-                 value=serialize(nr_bucket_data).decode("utf-8")))
+        return True, dict(key=nameResolutionBucketId, 
+                 value=serialize(nr_bucket_data).decode("utf-8"))
         
-    trie_insertions.extend([
-        dict(key=interaction["id"], value=serialize({"channel":channel,"value":interaction["value"]}).encode("utf-8")) 
-        for channel, interaction_list in interactions.items() for interaction in interaction_list])
+    return False, dict()
 
+
+def getInteractionInsertions(interactions):
+    return [
+        dict(key=interaction["id"], value=serialize({"channel":channel,"value":interaction["value"]}).encode("utf-8")) 
+        for channel, interaction_list in interactions.items() for interaction in interaction_list]
+        
+    
+def DBSubmission(db_submits):
+    # TODO: Maybe move to another folder
     results = db.multiquery([
         ("put", [bytes(item["id"], 'utf-8'), item["data"]]) for item in db_submits
     ])
@@ -173,28 +271,3 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     for result in results:
         if not result[1]:
             raise Exception("Error while inserting buckets")
-
-    ## TRIE UPDATE ######
-    ## put all the new buckets into the try and the new insertions
-    trie.insert_many([
-        (bckt["id"], "") 
-        for bckt in db_submits
-    ])
-
-    # update the trie insertions.
-    trie.insert_many([
-        (ins["key"], ins["value"])
-        for ins in trie_insertions])
-
-    if DEV_ENVIRONMENT == "LOCAL":
-        trie.persist(db)
-
-    return response
-    # submit = SUBMIT(
-    #     parent_submit_id=branch_data["stableHead"],
-    #     submit_msg=msg,
-    #     trie_root=trie.root.hash,
-    #     submit_trace=submit_trace
-    # )
-
-    # # TODO: implement submit and serialize it.
