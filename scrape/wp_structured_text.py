@@ -71,18 +71,21 @@ from typing import Mapping, List
     
 
 class Part:
-    def __init__(self, part_id, title, super_title, level, header, headerless_content) -> None:
+    def __init__(self, title, super_title, level, header, headerless_content, part_id, full_text="") -> None:
         self.title = title
         self.super_title = super_title
         self.level = level
         self.header = header
         self.headerless_content = headerless_content
         self.part_id = part_id
+        self.full_text = full_text  # full_text includes the specific formatting
 
     @property
     def content(self):
-        header = f"{self.header}\n" if self.header else ""
-        return header + self.headerless_content
+        # header = f"{self.header}\n" if self.header else ""
+        # return header + self.headerless_content
+        return self.full_text
+    
 
     # override the __repr__ method with __dict__
     def __repr__(self) -> str:
@@ -111,29 +114,35 @@ class WikipediaStructuredText():
         # Extract meta information and summary before the first section
         first_section_index = self.wikitext.find(parts[1]) if len(parts) > 1 else len(self.wikitext)
         pre_section_text = self.wikitext[:first_section_index]
-        
+
         # Extract 0-level objects like {{something|content}}
         zero_level_pattern = r"{{(.*?)\|(.*?)}}"
         zero_level_objects = re.findall(zero_level_pattern, pre_section_text)
         part_id = 0
         for obj in zero_level_objects:
             meta_type, content = obj
-            sections.append(Part(title=meta_type, super_title="", level=0, header="", headerless_content=content, part_id=part_id))
+            full_text = f"{{{{{meta_type}|{content}}}}}"
+            sections.append(Part(title=meta_type, super_title="", level=0, header="", headerless_content=content, part_id=part_id, full_text=full_text))
             part_id += 1
 
-        # Extract summary (text before the first section excluding zero-level objects)
+        # Extract summary
+        # Updated line in extract_parts method
         for obj in zero_level_objects:
-            pre_section_text = pre_section_text.replace('{{' + '|'.join(obj) + '}}', '')
+            full_obj_text = '{{' + obj[0] + '|' + obj[1] + '}}'
+            pre_section_text = re.sub(re.escape(full_obj_text), '', pre_section_text)
+
         summary_content = pre_section_text.strip()
-        sections.append(Part(title="Summary", super_title="", level=1, header="", headerless_content=summary_content, part_id=part_id))
+        sections.append(Part(title="Summary", super_title="", level=1, header="", headerless_content=summary_content, part_id=part_id, full_text=summary_content))
         part_id += 1
 
         # Process each part for section extraction
         for i in range(1, len(parts), 3):
-            level = len(parts[i])  # The number of '=' indicates the level of the section
+            level = len(parts[i])
             title = parts[i + 1].strip()
             headerless_content = parts[i + 2].strip()
             super_title = ""
+            header = parts[i] + title + parts[i]
+            full_text = header + "\n" + headerless_content
 
             # Update the stack and determine the super_title
             while section_stack and section_stack[-1].level >= level:
@@ -141,10 +150,11 @@ class WikipediaStructuredText():
             if section_stack:
                 super_title = section_stack[-1].title
 
-            current_part = Part(title=title, super_title=super_title, part_id=part_id, level=level, header=title, headerless_content=headerless_content)
+            current_part = Part(title=title, super_title=super_title, part_id=part_id, level=level, header=title, headerless_content=headerless_content, full_text=full_text)
             section_stack.append(current_part)
             sections.append(current_part)
 
             part_id += 1
 
         return sections
+
