@@ -5,8 +5,8 @@ from utils.serialize import (serialize, unserialize)
 
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA, BUCKET_ID_TYPE_NO_REF
 
-from db_trie import db
-from db_trie import trie
+from setup.db_trie import db
+from setup.db_trie import trie
 from lakat.submit import content_submit
 
 create_key_pair_flag = False

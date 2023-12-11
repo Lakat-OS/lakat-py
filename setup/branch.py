@@ -1,6 +1,6 @@
-from scrape.wp_get_page import WikipediaPage
-from scrape.wp_structured_diffs import Diff, _similar_content
-from scrape.wp_structured_text import WikipediaStructuredText
+from initialization.wp_get_page import WikipediaPage
+from initialization.wp_structured_diffs import Diff, _similar_content
+from initialization.wp_structured_text import WikipediaStructuredText
 import difflib
 from config.scrape_cfg import EXAMPLE_ARTICLE_TITLE, WIKIPEDIA_API_URL
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA, BUCKET_ID_TYPE_NO_REF

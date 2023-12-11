@@ -65,7 +65,6 @@ def getBucketIdsFromMolecularContents(content_dict, index_to_bucketId):
     data = unserialize(content_dict["data"])
     # Create a dictionary for fast lookup
     content_bucket_ids = []
-    print("DATA ORDER:", data["order"]  )
     for entry in data["order"]:
         if entry["type"] == BUCKET_ID_TYPE_NO_REF:
             content_bucket_ids.append(index_to_bucketId[entry["id"]])

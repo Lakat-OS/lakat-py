@@ -7,9 +7,10 @@ base_params = dict(action="query", format="json")
 
 class WikipediaPage:
 
-    def __init__(self, API_URL):
+    def __init__(self, API_URL, scrape_directory="initialization"):
         self.API_URL = API_URL
         self.__jsonIndent = 2
+        self.scrape_directory = scrape_directory
 
     def get_page_content(self, title):
         """Fetch the main content of a Wikipedia page."""
@@ -218,7 +219,7 @@ class WikipediaPage:
 
     def load_content_from_batches(self, article_name, start_batch_id, end_batch_id, download_if_not_exist=False):
         """Load content from stored batch files."""
-        dir_path = f"./scrape/hist/{article_name}"
+        dir_path = f"./{self.scrape_directory}/hist/{article_name}"
         index_file = os.path.join(dir_path, "index.json")
 
         # check if index file exists
