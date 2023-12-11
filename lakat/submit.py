@@ -73,12 +73,13 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     #### UPDATE THE BRANCH STATE ####################
     (branch_dict, 
      nameResolutionBucketId,
-     new_trie_insertion,
-     branch_response) = createPrepareOrUpdateBranch(branchId, create_branch, submit_dict["id"], ns_bckts)
+     branch_trie_update) = createPrepareOrUpdateBranch(branchId, create_branch, submit_dict["id"], ns_bckts)
+    updated_branch_id = branch_trie_update["key"]
+    current_branch_state = branch_trie_update["value"]
 
 
     #### GET NEW NAME REGISTRATIONS ##################
-    new_registration, nr_trie_bucket_data = nameRegistration(
+    new_registration, nr_trie_bucket_data, nr_of_regs = nameRegistration(
         buckets, nameResolutionBucketId)
 
 
@@ -88,18 +89,24 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     db_submits.append(submit_trace_dict)
     db_submits.append(submit_dict)
     db_submits.append(branch_dict)
+
     # Store the bucket ids and their type in the response
     response.update({
-        b["id"]: "ATOMIC" 
-        for b in buckets["buckets"][DEFAULT_ATOMIC_BUCKET_SCHEMA]})
-    response.update({
-        b["id"]: "MOLECULAR" 
-        for b in buckets["buckets"][DEFAULT_MOLECULAR_BUCKET_SCHEMA]})
-    response.update({submit_trace_dict["id"]: "SUBMIT_TRACE"})
-    response.update({submit_dict["id"]: "SUBMIT"})
-    response.update(branch_response)
+        "bucket_ids": buckets["ordered_bucket_ids"],
+        "molecule_ids": [bckt["id"] for bckt in buckets["buckets"].get(DEFAULT_MOLECULAR_BUCKET_SCHEMA)],
+        "branch_id": updated_branch_id,
+        "branch_state": current_branch_state,
+        "submit_id": submit_dict["id"],
+        "submit_trac_id": submit_trace_dict["id"],
+        "registered_names": buckets["new_registrations"],
+        "nr_regs": nr_of_regs,
+        "name_registration_deployed": buckets["name_resolution_deployed"],
+        "msg": msg
+    })
+
+
     # Trie insertions
-    trie_insertions.append(new_trie_insertion)
+    trie_insertions.append(branch_trie_update)
     if new_registration:
         trie_insertions.append(nr_trie_bucket_data)
     # Interaction Tre insertions
@@ -194,14 +201,12 @@ def createPrepareOrUpdateBranch(branchId, create_branch, submit_id, ns_bckts):
         nameResolutionBucketId = branch.nameResolution
         serialized_branch = serialize(branch.__dict__)
         branch_dict = {"id": lakathash(serialized_branch), "data": serialized_branch}
-        trie_insertion = dict(
+        branch_trie_update = dict(
             key=branch_dict["id"], value=branch_dict["id"])
-        branch_response = {branch_dict["id"]: "BRANCH"}
         return (
             branch_dict, 
             nameResolutionBucketId, 
-            trie_insertion, 
-            branch_response)
+            branch_trie_update)
     else:
         # update the branch:
         # add the nameResolution to the branch if there is one
@@ -226,18 +231,17 @@ def createPrepareOrUpdateBranch(branchId, create_branch, submit_id, ns_bckts):
         nameResolutionBucketId = branch.nameResolution
         serialized_branch = serialize(branch.__dict__)
         branch_dict = {"id": lakathash(serialized_branch), "data": serialized_branch}
-        trie_insertion = dict(
+        branch_trie_update = dict(
             key=branchId, value=branch_dict["id"])
-        branch_response = {branch_dict["id"]: "BRANCH"}
         return (
             branch_dict, 
             nameResolutionBucketId, 
-            trie_insertion, 
-            branch_response)
+            branch_trie_update)
     
 
 def nameRegistration(buckets, nameResolutionBucketId):
 
+    total_number_of_registrations_on_branch = -1
     if buckets["new_registrations"]:
         nameResolutionDecoded = trie.retrieve_value(nameResolutionBucketId)
         if not nameResolutionDecoded:
@@ -248,11 +252,15 @@ def nameRegistration(buckets, nameResolutionBucketId):
         nr_bucket_data.update({
             bckt["id"]: bckt["name"] 
             for bckt in buckets["new_registrations"]})
+        total_number_of_registrations_on_branch = len(nr_bucket_data.keys())
         
-        return True, dict(key=nameResolutionBucketId, 
-                 value=serialize(nr_bucket_data).decode("utf-8"))
+        return (
+            True, 
+            dict(key=nameResolutionBucketId, 
+                 value=serialize(nr_bucket_data).decode("utf-8")),
+            total_number_of_registrations_on_branch)
         
-    return False, dict()
+    return False, dict(), total_number_of_registrations_on_branch
 
 
 def getInteractionInsertions(interactions):

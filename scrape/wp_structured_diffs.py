@@ -101,14 +101,14 @@ class Diff:
                             break
                     if not similar_found:
                         new_indices.append(j)
-                        deleted.append(part1)
+                        deleted.append(i)
                 else:
                     new_indices = potentially_new_indices
-                    deleted.append(part1)
+                    deleted.append(i)
         
         # Step 4: Identify added parts
         for j in new_indices:
-            new.append(text2_parts[j])
+            new.append(j)
 
         return {'rearranged': rearranged, 'modified': modified, 'new': new, 'deleted': deleted}
 

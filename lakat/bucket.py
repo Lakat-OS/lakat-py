@@ -7,7 +7,9 @@ from config.bucket_cfg import (
     DEFAULT_ATOMIC_BUCKET_SCHEMA, 
     DEFAULT_MOLECULAR_BUCKET_SCHEMA,
     DEFAULT_PULLREQUEST_BUCKET_SCHEMA,
-    DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA)
+    DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA,
+    BUCKET_ID_TYPE_NO_REF,
+    BUCKET_ID_TYPE_WITH_ID_REF)
 from utils.schemata.bucket import check_schema
 from setup.db_trie import db, trie
 
@@ -25,16 +27,15 @@ def prepare_atomic_bucket(content_dict: Dict[str, bytes]) -> bytes:
     return lakathash(bucketData), bucketData
     
 
-def prepare_molecular_bucket(content_dict: Dict[str, bytes], atomicBuckets: List[Dict[str, Union[int, bytes]]]) -> bytes:
+def prepare_molecular_bucket(content_dict: Dict[str, bytes], molecule_bucket_ids) -> bytes:
         
     if content_dict["schema_id"] == DEFAULT_MOLECULAR_BUCKET_SCHEMA:
         # get the data from content_dict["data"]
         data = unserialize(content_dict["data"])
         # Create a dictionary for fast lookup
-        index_to_bucketId = {bucket["index"]: bucket["id"] for bucket in atomicBuckets}
 
         # Get the bucketIds in the desired order
-        bucket_data = serialize([index_to_bucketId[idx["id"]] for idx in data["order"]])
+        bucket_data = serialize(molecule_bucket_ids)
         bucket = BUCKET(
             schema_id = content_dict["schema_id"],
             public_key = content_dict["public_key"],
@@ -60,6 +61,19 @@ def prepare_namespace_bucket(content_dict: Dict[str, bytes]) -> bytes:
     bucketData = serialize(bucket.__dict__)
     return lakathash(bucketData), bucketData
 
+def getBucketIdsFromMolecularContents(content_dict, index_to_bucketId):
+    data = unserialize(content_dict["data"])
+    # Create a dictionary for fast lookup
+    content_bucket_ids = []
+    print("DATA ORDER:", data["order"]  )
+    for entry in data["order"]:
+        if entry["type"] == BUCKET_ID_TYPE_NO_REF:
+            content_bucket_ids.append(index_to_bucketId[entry["id"]])
+        elif entry["type"] == BUCKET_ID_TYPE_WITH_ID_REF:
+            content_bucket_ids.append(entry["id"])
+        else:
+            raise Exception("Invalid bucket id type")
+    return content_bucket_ids
 
 
 def getBucketContentIdsAndNameRegistrations(
@@ -68,12 +82,23 @@ def getBucketContentIdsAndNameRegistrations(
     ) -> Dict[int, List[Dict[str, Union[int, bytes]]]]:
     """ get the bucket content and ids from the contents 
     """
+    # store the eventual buckets
     atomicBuckets = list()
     molecularBuckets = list()
+    # keep track of the various other types of buckets.
     nameResolutionBuckets = list()
     pullRequestBuckets = list()
+    # keep track of indices and new name registrations.
     molecularBucketIndices = list()
     newRegistrations = list()
+
+    # initialize some flags
+    canStillRegisterNameResolution = nameResolutionId is None
+    NameResolutionDeployed = False
+
+    # STORE THE BUCKET IDS IN THE ORDER THEY APPEAR IN THE CONTENTS
+    bucket_ids = [None] * len(contents)
+
     for index, content in enumerate(contents):
         # unpack content
         content_dict = unserialize(content)
@@ -90,6 +115,8 @@ def getBucketContentIdsAndNameRegistrations(
             # append data for database put-query.
             atomicBuckets.append(
                 {"id": bucketId, "data": bucketData, "index": index})
+            # store the bucket id in the order it appears in the contents
+            bucket_ids[index] = bucketId
         
         elif content_dict["schema_id"] == DEFAULT_MOLECULAR_BUCKET_SCHEMA:
             molecularBucketIndices.append(index)
@@ -97,17 +124,31 @@ def getBucketContentIdsAndNameRegistrations(
         elif content_dict["schema_id"] == DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA:
             # prepare name_space bucket for submission
             bucketId, bucketData = prepare_namespace_bucket(content_dict)
-            if not nameResolutionId:
+            if canStillRegisterNameResolution:
                 nameResolutionBuckets.append({
                 "id": bucketId, "data": bucketData, "index": index})
+                # register bucket id
+                bucket_ids[index] = bucketId
+                # update NameResolutionDeployed
+                NameResolutionDeployed = True
+                ## CAN ONLY REGISTER NAME RESOLUTION ONCE
+                canStillRegisterNameResolution = False
             else:
                 # check if the nameResolutionId is the same as the bucketId
-                message = "The nameResolutionId already exists"
+                message = "The nameResolution already exists"
                 # raise Exception(message)
                 print(message)
+                # Mention Error in bucket Id
+                bucket_ids[index] = 'ERR:NameResolutionAlreadyExists'
         else:
             raise Exception("Invalid content type")
-        
+    
+    # create a dictionary for fast lookup of bucket ids given the index
+    # with which it was submitted
+    index_to_bucketId = {
+        bucket["index"]: bucket["id"] 
+        for bucket in atomicBuckets}
+    
     # then create buckets from the molecular contents
     for index in molecularBucketIndices:
         # unpack content
@@ -118,12 +159,17 @@ def getBucketContentIdsAndNameRegistrations(
                 schema=content_dict["schema_id"])
         if not success:
             raise Exception(f"ERR: {err}! {msg}")
+        # substitute all the ids with the actual bucket ids
+        
+        molecule_bucket_ids = getBucketIdsFromMolecularContents(content_dict, index_to_bucketId)
         # prepare bucket for submission
         bucketId, bucketData = prepare_molecular_bucket(
-            content_dict, atomicBuckets)
+            content_dict, molecule_bucket_ids)
         # append data for database put-query.
         molecularBuckets.append(
             {"id": bucketId, "data": bucketData, "index": index})
+        # register bucket id
+        bucket_ids[index] = bucketId
 
         content_data_dict = unserialize(content_dict["data"])
         if content_data_dict["name"]:
@@ -141,7 +187,9 @@ def getBucketContentIdsAndNameRegistrations(
                 DEFAULT_PULLREQUEST_BUCKET_SCHEMA: pullRequestBuckets,
                 DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA: nameResolutionBuckets
             },
-        "new_registrations": newRegistrations
+        "new_registrations": newRegistrations,
+        "ordered_bucket_ids": bucket_ids,
+        "name_resolution_deployed": NameResolutionDeployed
     }
 
     return result

@@ -1,1 +1,1 @@
-DB_NAME = "lakat_test_4"
+DB_NAME = "lakat_test_1"
