@@ -3,6 +3,7 @@
 import os
 import time
 import json
+import shutil
 from typing import List, Tuple
 from typing_extensions import Literal
 from collections.abc import Mapping
@@ -40,19 +41,27 @@ class MOCK_DB(DB_BASE):
         object_type = 'bucket'
         with open(file_path, 'w') as file:
             unserialized = unserialize(value)
-            data = {}
+            
             if are_keys_hexadecimal(unserialized):
                 object_type = "trie"
-            if "schema_id" in unserialized:
+            elif "schema_id" in unserialized:
                 object_type = "bucket_" + str(unserialized["schema_id"])
+            elif "parent_submit_id" in unserialized:
+                object_type = "submit"
+            elif "parentBranch" in unserialized:
+                object_type = "branch"
+            elif "changesTrace" in unserialized:
+                object_type = "trace"
+            else:
+                object_type = "other"
+
             for k in ["data", "refs"]:
                 if k in unserialized:
                     unserialized[k] = unserialize(unserialized[k])
             if "public_key" in unserialized:
                 unserialized["public_key"] = unserialized["public_key"].decode('utf-8')
-            
+            data = {}
             if are_keys_hexadecimal(unserialized):
-                object_type = "trie"
                 data.update(unserialized)
             else:
                 data.update({'unserialized': unserialized, 'serialized': value})
@@ -115,4 +124,4 @@ class MOCK_DB(DB_BASE):
 
     def close(self):
         # delete the directory and all its files
-        pass
+        shutil.rmtree(self.db)

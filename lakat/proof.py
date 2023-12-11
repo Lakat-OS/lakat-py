@@ -1,3 +1,3 @@
 
 def checkContributorProof(branchId: int, proof: bytes) -> bool:
-    return True
+    return True, "0", "Success"

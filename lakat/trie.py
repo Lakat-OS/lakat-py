@@ -1,6 +1,6 @@
 import hashlib
 import binascii
-from utils.encode.hashing import hash
+from utils.encode.hashing import lakathash
 from utils.serialize import serialize
 
 
@@ -30,7 +30,7 @@ class TrieNode:
         # Combine the hash of the value with the hashes of the children
         children_hash = ''.join(child.hash for child in self.children.values() if child.hash)
         combined = (children_hash + (self.value if self.value else '') + (self.interaction if self.interaction else '')).encode('utf-8')
-        self.hash = hash(combined)
+        self.hash = lakathash(combined)
 
     def __repr__(self):
         return f"TrieNode({self.hash[:10]})"
@@ -158,19 +158,33 @@ class MerkleTrie:
 
         return keys
     
-    def get_json_representation(self):
-        return self._get_json_from_node(self.root, "")
+    def get_json_representation(self, interaction=False):
+        return self._get_json_from_node(
+            current_node=self.root, 
+            current_path="", 
+            interaction=interaction)
 
-    def _get_json_from_node(self, current_node, current_path):
+    def _get_json_from_node(self, 
+            current_node, 
+            current_path,
+            interaction=False):
+        
         if current_node.is_junction:
             # If it's a junction or a leaf, start a new sub-dictionary
             result = {}
             for char, node in current_node.children.items():
                 sub_path = current_path + char
                 result[sub_path] = self._get_json_from_node(node, "")
-            if current_node.value is not None:
+            
+            if interaction and current_node.interaction is not None:
+                # Add the interaction at this junction
+                result[current_path] = current_node.interaction
+            elif not interaction and current_node.value is not None:
                 # Add the value at this junction
-                result[current_path] = ""
+                result[current_path] = current_node.value
+            else:
+                pass
+            
             return result
         else:
             # Continue building the path
@@ -181,14 +195,26 @@ class MerkleTrie:
         for key, value in keysValuePairs:
             self.insert(key, value)
 
+    def update_many_interactions(self, keysInteractionPairs):
+        for key, interaction in keysInteractionPairs:
+            self.update_interaction(key, interaction)
     
-    def persist(self, db):
-        trie_representation = self.get_json_representation()
+    def persist(self, db, interaction=False):
+        trie_representation = self.get_json_representation(interaction=interaction)
         ser_trie_representation = serialize(trie_representation)
-        hash(ser_trie_representation)
-        db.put(
-            hash(ser_trie_representation).encode('utf-8'), 
-            ser_trie_representation)
+        if interaction:
+            db.put(
+                ("interaction_" + lakathash(ser_trie_representation)).encode('utf-8'), 
+                ser_trie_representation)
+        else:
+            db.put(
+                lakathash(ser_trie_representation).encode('utf-8'), 
+                ser_trie_representation)
+
+        
+    
+    def get_hexlified(self, key: str) -> str:
+        return hexlify(key)
 
 
 # class MerkleTrieRevertible(MerkleTrie):

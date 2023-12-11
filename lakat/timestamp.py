@@ -1,10 +1,10 @@
 from web3 import Web3, EthereumTesterProvider
 import bitcoinlib
 from hashlib import sha256
-
+import time
 
 def getTimestamp() -> int:
-    return 1
+    return int(time.time())
 # function that hashes the latest block hash of both bitcoin and ethereum
 # def getTimestamp() -> bytes:
 #     ethBlockHash = getEthereumBlockHash()
