@@ -14,14 +14,21 @@ from lakat.proof import checkContributorProof
 from utils.serialize import serialize, unserialize
 from utils.encode.hashing import lakathash
 from lakat.timestamp import getTimestamp
-from lakat.trie import hexlify
+from lakat.trie import (
+    trie_update_many_interactions,
+    trie_insert_many,
+    trie_persist,
+    trie_insert,
+    trie_retrieve_value,
+    trie_get_root_hash)
+from utils.trie.trie import hexlify
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
+
 from setup.db_trie import db
-from setup.db_trie import trie
 
 
-def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]], branchId: str, proof: bytes, msg: str, create_branch):
+def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]], branchId: str, proof: bytes, msg: str, create_branch)-> dict:
 
     #### CHECK CONTRIBUTOR PROOF #####################
     if not create_branch:
@@ -80,7 +87,9 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
 
     #### GET NEW NAME REGISTRATIONS ##################
     new_registration, nr_trie_bucket_data, nr_of_regs = nameRegistration(
-        buckets, nameResolutionBucketId)
+        branchId=updated_branch_id,
+        buckets=buckets, 
+        nameResolutionBucketId=nameResolutionBucketId)
 
 
     #### STORE THE BUCKET DATA IN LOCAL VARIABLES ####
@@ -120,19 +129,25 @@ def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]],
     ## TRIE UPDATE ######
     # TODO: Is it not a problem for the rootHash that the values are all ""
     ## put all the new buckets into the try and the new insertions
-    trie.insert_many([
+    trie_insert_many(
+        branchId=updated_branch_id, 
+        keysValuePairs=[
         (bckt["id"], "") for bckt in db_submits])
     # update the trie insertions.
-    trie.insert_many([
+    trie_insert_many(
+        branchId=updated_branch_id,
+        keysValuePairs=[
         (ins["key"], ins["value"]) for ins in trie_insertions])
     # interaction values update
-    trie.update_many_interactions([
+    trie_update_many_interactions(
+        branchId=updated_branch_id,
+        keysInteractionPairs=[
         (ins["key"], ins["value"])
         for ins in interaction_trie_insertions])
 
     # if DEV_ENVIRONMENT == "LOCAL":
-    trie.persist(db, interaction=False)
-    trie.persist(db, interaction=True)
+    trie_persist(branchId=updated_branch_id, interaction=False)
+    trie_persist(branchId=updated_branch_id, interaction=True)
 
     return response
 
@@ -171,7 +186,7 @@ def getSubmitObject(branchId, create_branch, msg, submit_trace_dict):
     submit = SUBMIT(
         parent_submit_id=parent_submit_id,
         submit_msg=msg,
-        trie_root=trie.root.hash,
+        trie_root=trie_get_root_hash(branchId),
         submit_trace=submit_trace_dict["id"]
     )
     
@@ -216,7 +231,9 @@ def createPrepareOrUpdateBranch(branchId, create_branch, submit_id, ns_bckts):
         
         branch_params = dict()
         
-        current_branch_state_id = trie.retrieve_value(branchId)
+        # TODO: think about this function
+        current_branch_state_id = trie_retrieve_value(
+            branchId=branchId, key=branchId)
         serialized_branch_data = db.get(bytes(current_branch_state_id, 'utf-8'))
         if serialized_branch_data is None:
             raise Exception("Branch does not exist")
@@ -239,11 +256,12 @@ def createPrepareOrUpdateBranch(branchId, create_branch, submit_id, ns_bckts):
             branch_trie_update)
     
 
-def nameRegistration(buckets, nameResolutionBucketId):
+def nameRegistration(branchId, buckets, nameResolutionBucketId):
 
     total_number_of_registrations_on_branch = -1
     if buckets["new_registrations"]:
-        nameResolutionDecoded = trie.retrieve_value(nameResolutionBucketId)
+        nameResolutionDecoded = trie_retrieve_value(
+            branchId=branchId, key=nameResolutionBucketId)
         if not nameResolutionDecoded:
             nr_bucket_data = dict()
         else:
