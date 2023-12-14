@@ -1,8 +1,8 @@
-import hashlib
 import binascii
 from utils.encode.hashing import lakathash
 from utils.serialize import serialize, unserialize
-from config.db_cfg import DEV_TRIE_SUFFIX, TRIE_TYPE, TRIE_INTERACTION_DUMP_TYPE
+from config.db_cfg import TRIE_INTERACTION_DUMP_TYPE, TRIE_TYPE
+from utils.trie.node import TrieNode
 
 
 def hexlify(data: str) -> str:
@@ -10,58 +10,6 @@ def hexlify(data: str) -> str:
 
 # def hash_data(data):
 #     return hashlib.sha256(data.encode('utf-8')).hexdigest()
-
-class TrieNode:
-    def __init__(self, path=''):
-        self.children = {}
-        self.value : str or None = None
-        self.hash = None
-        self.interaction = None
-        self.path = path
-    
-    @property
-    def is_leaf(self):
-        """
-        Property to determine if the node is a leaf.
-        A node is considered a leaf if it has no children
-        """
-        return len(self.children) == 0
-
-    @property
-    def is_junction(self):
-        """
-        Property to determine if the node is a junction.
-        A node is considered a junction if it has more than one child or it holds a value.
-        """
-        return len(self.children) > 1 or self.value is not None
-    
-
-    def update_hash(self, db):
-        # Combine the hash of the value with the hashes of the children
-        # serialize the data of the node except the hash
-        serialized_data = self.serialize()
-        self.hash = lakathash(serialized_data)
-        db.put(self.hash.encode('utf-8'), serialized_data, entry_type=TRIE_TYPE)
-        
-
-    def serialize(self):
-        data = dict()
-        for k,v in self.__dict__.items():
-            if k == 'hash':
-                continue
-            if k == 'children':
-                data[k] = {l: node.hash for l, node in v.items()}
-            else:
-                data[k] = v
-        return serialize(data)
-
-    def get_hash(self):
-        serialized_data = self.serialize()
-        return lakathash(serialized_data)
-
-    def __repr__(self):
-        return f"TrieNode({self.hash[:10]})"
-
 
 class MerkleTrie:
     def __init__(self, db, branchId):
@@ -253,7 +201,7 @@ class MerkleTrie:
 
     def _load_trie_node_from_db(self, current_node, hash):
         # fetch the serialized data from the database
-        serialized = self.db.get(hash.encode('utf-8'))
+        serialized = self.db.get(hash.encode('utf-8'), entry_type=TRIE_TYPE)
         if serialized is None:
             raise Exception("Root hash not found in database")
         data = unserialize(serialized)
@@ -276,74 +224,3 @@ class MerkleTrie:
     def get_hexlified(self, key: str) -> str:
         return hexlify(key)
     
-
-
-
-# class MerkleTrieRevertible(MerkleTrie):
-#     def __init__(self):
-#         super().__init__()
-#         self._root_history = []
-
-#     def insert(self, key, value):
-#         self._root_history.append({
-#             "node": self.root,
-#             "hash": self.root.hash,
-#             "interaction": self.root.interaction
-
-
-#         })
-#         super().insert(key, value)
-#         self._root_history.append(self.root.hash)
-
-#     def revert(self):
-#         if len(self._root_history) > 1:
-#             self._root_history.pop()
-#             self.root.hash = self._root_history[-1]
-#         else:
-#             raise Exception("Cannot revert further")
-
-#     def get_root_history(self):
-#         return self._root_history
-
-#     def get_root_history_hashes(self):
-#         return [hash for hash in self._root_history]
-
-#     def get_root_history_hashes_hex(self):
-#         return [hexlify(hash) for hash in self._root_history]
-
-# # Example usage
-# trie = MerkleTrie()
-# trie.insert("key1", "value1")
-# print("Root hash:", trie.root.hash)  # Outputs the hash of the root node
-# trie.insert("key2", "value2")
-
-# print("Value for 'key1':", trie.retrieve_value("key1"))  # Outputs: value1
-# print("Value for 'key2':", trie.retrieve_value("key2"))  # Outputs: value2
-# print("Root hash:", trie.root.hash)  # Outputs the hash of the root node
-
-
-# # Update the interaction for a key
-# trie.update_interaction("key1", "interaction1")
-# print("Root hash:", trie.root.hash)  # Outputs the hash of the root node
-
-
-# # Retrieve the interaction for a key
-# print("Interaction for 'key1':", trie.retrieve_interaction("key1"))  # Outputs: interaction1
-# all_keys = trie.get_all_keys()
-# print("All keys:", all_keys)  # Outputs: ['key1', 'key2']
-
-# # test rollback
-# print("Root hash before insertion:", trie.root.hash)
-# all_keys = trie.get_all_keys()
-# print("All keys before insertion:", all_keys)
-
-# trie.insert("kez2", "value3")
-
-# print("Root hash after insertion:", trie.root.hash)
-# all_keys = trie.get_all_keys()
-# print("All keys after insertion:", all_keys)  # Outputs: ['key1', 'key2']
-
-# trie.rollback()
-# print("Root hash after rollback:", trie.root.hash)
-# all_keys = trie.get_all_keys()
-# print("All keys after rollback:", all_keys) 

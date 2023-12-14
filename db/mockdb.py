@@ -96,18 +96,20 @@ class MOCK_DB(DB_BASE):
 
     
     def get(self, key:bytes, entry_type: str = "db") -> bytes :
-        file_path = os.path.join(self.db, key[:self.__crop_filename_after].decode('utf-8') + ".json")
-        # check whether file exists
-        if not os.path.exists(file_path):
-            return None
+        
         
         if entry_type == TRIE_TYPE:
             file_path = os.path.join(self.db, TRIE_FOLDER, key[:self.__crop_filename_after].decode('utf-8') + ".json")
+
         elif entry_type == TRIE_INTERACTION_DUMP_TYPE:
             file_path = os.path.join(self.db, INTERACTION_TRIE_FOLDER, key[:self.__crop_filename_after].decode('utf-8') + ".json")
+            
         else:
-            pass
-
+            file_path = os.path.join(self.db, key[:self.__crop_filename_after].decode('utf-8') + ".json")
+        
+        # check whether file exists
+        if not os.path.exists(file_path):
+            return None
         with open(file_path, 'r') as file:
             data = jsonload(file)
             return data['serialized']
