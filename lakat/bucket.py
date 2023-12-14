@@ -31,7 +31,6 @@ def prepare_molecular_bucket(content_dict: Dict[str, bytes], molecule_bucket_ids
         
     if content_dict["schema_id"] == DEFAULT_MOLECULAR_BUCKET_SCHEMA:
         # get the data from content_dict["data"]
-        data = unserialize(content_dict["data"])
         # Create a dictionary for fast lookup
 
         # Get the bucketIds in the desired order

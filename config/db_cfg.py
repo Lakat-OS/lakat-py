@@ -1,1 +1,7 @@
 DB_NAME = "lakat_test_1"
+DEV_TRIE_SUFFIX = "_trie_"
+DB_FOLDER = "mockdb"
+TRIE_TYPE = "trie"
+TRIE_INTERACTION_DUMP_TYPE = "interaction_dump"
+INTERACTION_TRIE_FOLDER = "interaction"
+TRIE_FOLDER = "trie"
