@@ -19,3 +19,12 @@ class DB_BASE:
 
     def close(self):
         pass
+
+
+class DHT:
+
+    def store(self, key: str, value: str):
+        pass
+
+    def retrieve(self, key: str) -> str:
+        pass

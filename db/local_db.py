@@ -15,16 +15,16 @@ class DB(DB_BASE):
     def create(self, name:str) :
         return plyvel.DB('/tmp/{name}/'.format(name=name), create_if_missing=True)
 
-    def put(self, key:bytes, value: bytes):
+    def put(self, key:str, value: str):
         self.db.put(key, value)
 
-    def get(self, key:bytes) -> bytes :
+    def get(self, key:str) -> str :
         return self.db.get(key)
 
-    def delete(self, key:bytes):
+    def delete(self, key:str):
         self.db.delete(key)
     
-    def multiquery(self, queries: List[Tuple[Literal["put", "get", "delete"], List[bytes]]]) -> List[Tuple[Literal["put", "get", "delete"], bool or bytes]]:
+    def multiquery(self, queries: List[Tuple[Literal["put", "get", "delete"], List[str]]]) -> List[Tuple[Literal["put", "get", "delete"], bool or str]]:
         results = list()
         for queryType, arguments in queries:
             if queryType == "put":

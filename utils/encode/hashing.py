@@ -39,7 +39,6 @@ def lakatmultihash(data: str) -> str:
         mh = mh[:DEV_HASH_LENGTH]
     return encode_bytes_to_str(mh)
 
-
 def lakatcid(data: str):
     hsh = lakatmultihash(data=data)
     return cid.make_cid(1, CODEC, hsh).encode().decode(ENCODING_FUNCTION)

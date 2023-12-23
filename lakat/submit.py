@@ -9,10 +9,11 @@ from config.dev_cfg import DEV_ENVIRONMENT
 from lakat.bucket import (
     getBucketContentIdsAndNameRegistrations,
     getDBSubmitsFromBuckets,
-    getNameRegistryBucketId)
+    getNameRegistryBucketId,
+    createNameRegistryBucket)
 from lakat.proof import checkContributorProof
-from utils.serialize import serialize, unserialize
-from utils.encode.hashing import lakathash
+from utils.serialize.codec import serialize, unserialize
+from utils.encode.hashing import lakatcid
 from lakat.timestamp import getTimestamp
 from lakat.trie import (
     trie_update_many_interactions,
@@ -27,6 +28,81 @@ from interfaces.branch import BRANCH
 
 from setup.db_trie import db
 
+
+def create_branch(targetBranchId: str, public_key: str, submitId: str, msg: str, config: str) -> dict:
+    """
+    Creates a new branch and returns the response.
+
+    Parameters
+    ----------
+    targetBranchId : str
+        The id of the target branch. Decoded using utf-8.
+    submitId : str
+        The id of the submit. Decoded using utf-8.
+    msg : str
+        The message of the submit. 
+    config : str
+        The config of the branch. Needs to be deserialized.
+
+    """
+
+    ## PROOFS #######################################
+
+    # none
+
+    ## VALIDITY CHECKS ##############################
+
+    # checkValidityOfBranchId(branchId)
+    # TODO: add validity checks
+
+    ## INITIALIZATION ###############################
+    db_submits = []          # list of database submits
+    response = dict()        # dict of response data
+    trie_insertions = list() # list of trie insertions
+
+    ## CREATE NAME RESOLUTION BUCKET ##################
+
+    if not targetBranchId:
+        # create a new name resolution bucket
+        bucketId, bucketData = createNameRegistryBucket(public_key=public_key)
+        db_submits.append({"id": bucketId, "data": bucketData})
+    else:
+        # get the name resolution bucket id from the target branch
+        bucketId = getNameRegistryBucketId(branchId=targetBranchId, submitId=submitId)
+
+    ## CREATE SUBMIT TRACE ###########################
+
+    submit_trace_id, submit_trace_data = createSubmitTraceBucket(
+        changesTrace=[],pullRequests=[],
+        nameRegistryRegistrations=[], nameRegistryDeployment=bucketId,
+        reviewsTrace=[], socialTrace=[], sproutSelectionTrace=[])
+    db_submits.append({"id": submit_trace_id, "data": submit_trace_data})
+    
+
+        
+def createSubmitTraceBucket(changesTrace, pullRequests, nameRegistryRegistrations, nameRegistryDeployment, reviewsTrace, socialTrace, sproutSelectionTrace):
+        submit_trace = SUBMIT_TRACE(
+            changesTrace=changesTrace,
+            pullRequests=pullRequests,
+            nameRegistry={
+                "ns_bucket": nameRegistryDeployment,
+                "new_registrations": nameRegistryRegistrations},
+            reviewsTrace=reviewsTrace,
+            socialTrace=socialTrace,
+            sproutSelectionTrace=sproutSelectionTrace)
+        bucketData = serialize(submit_trace.__dict__)
+        return lakatcid(bucketData), bucketData
+
+    
+
+def submit(contents: List[str], interactions: List[Mapping[str, any]], branchId: str, proof: str, msg: str, create_branch: bool) -> dict:
+    """
+    Submits the contents to the database and returns the response.
+    """ 
+
+    #### CHECK CONTRIBUTOR PROOF #####################
+    # 
+        
 
 def content_submit(contents: List[bytes], interactions: List[Mapping[str, any]], branchId: str, proof: bytes, msg: str, create_branch)-> dict:
 

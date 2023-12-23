@@ -1,6 +1,6 @@
 from typing import Dict, Union, List
-from utils.serialize import (serialize, unserialize)
-from utils.encode.hashing import lakathash
+from utils.serialize.codec import (serialize, unserialize)
+from utils.encode.hashing import lakathash, lakatcid
 from interfaces.bucket import BUCKET
 from lakat.timestamp import getTimestamp
 from config.bucket_cfg import (
@@ -10,8 +10,10 @@ from config.bucket_cfg import (
     DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA,
     BUCKET_ID_TYPE_NO_REF,
     BUCKET_ID_TYPE_WITH_ID_REF)
+from config.encode_cfg import ENCODING_FUNCTION
 from utils.schemata.bucket import check_schema
-from setup.db_trie import db, trie
+from setup.db_trie import db
+from lakat.trie import get_trie, 
 
 
 def prepare_atomic_bucket(content_dict: Dict[str, bytes]) -> bytes:
@@ -59,6 +61,7 @@ def prepare_namespace_bucket(content_dict: Dict[str, bytes]) -> bytes:
     )
     bucketData = serialize(bucket.__dict__)
     return lakathash(bucketData), bucketData
+
 
 def getBucketIdsFromMolecularContents(content_dict, index_to_bucketId):
     data = unserialize(content_dict["data"])
@@ -197,7 +200,24 @@ def getDBSubmitsFromBuckets(buckets: Dict[str, List[Dict[str, Union[int, bytes]]
     return [v for bckt in buckets["buckets"].values() for v in bckt]
 
 
-def getNameRegistryBucketId(branchId: str, create_branch: bool) -> None or str:
+def getNameRegistryBucketId(branchId: str, submitId: str) -> None or str:
+    """ Get the name registry bucket id from the branchId and submitId
+    """
+    if not submitId:
+        # we need to get the nameRegistryBucketId from the currentHead of the branch (latest state)
+        serialized_branch_data = db.get(bytes(branchId, ENCODING_FUNCTION))
+        # get latest branch state
+        branch_data = unserialize(serialized_branch_data)
+        # get the name resolution bucket id
+        name_resolution_bucket_id = branch_data["nameResolution"]
+        # get trie root from latest branch state
+        head = branch_data["stableHead"]
+        # get trie root from the stable head
+        trie_root = head["trieRoot"]
+        # get the name resolution bucket data
+        trie.trie
+
+    serialized_submit_data = db.get(bytes(branchId, ENCODING_FUNCTION))
     if branchId and not create_branch:
         current_branch_state_id = trie.retrieve_value(branchId)
         serialized_branch_data = db.get(bytes(current_branch_state_id, 'utf-8'))
@@ -206,3 +226,19 @@ def getNameRegistryBucketId(branchId: str, create_branch: bool) -> None or str:
         branch_data = unserialize(serialized_branch_data)
         return branch_data["nameResolution"]
     return None
+
+
+def createNameRegistryBucket(public_key: str):
+    bucket = BUCKET(
+        schema_id = DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA,
+        public_key = public_key,
+        parent_bucket = "",
+        data = [dict(payload=serialize({}), storage_protocol = "")],
+        refs = [],
+        timestamp = getTimestamp()
+    )
+    bucketData = serialize(bucket.__dict__)
+    return lakatcid(bucketData), bucketData
+
+
+bucketId = getNameRegistryBucketId(branchId=targetBranchId, submitId=submitId)

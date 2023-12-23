@@ -7,7 +7,7 @@ import shutil
 from typing import List, Tuple
 from typing_extensions import Literal
 from collections.abc import Mapping
-from db.db_interface import DB_BASE
+from db.db_interfaces import DB_BASE
 from config.db_cfg import (
     DEV_TRIE_SUFFIX, 
     TRIE_TYPE, 
@@ -15,7 +15,7 @@ from config.db_cfg import (
     TRIE_FOLDER,
     TRIE_INTERACTION_DUMP_TYPE)
 
-from utils.serialize import serialize, unserialize, jsondump, jsonload
+from utils.serialize.codec import serialize, unserialize
 from utils.encode.check_if_hex import are_keys_hexadecimal
 
 

@@ -1,6 +1,6 @@
 import binascii
 from utils.encode.hashing import lakathash
-from utils.serialize import serialize, unserialize
+from utils.serialize.codec import serialize, unserialize
 from config.db_cfg import TRIE_INTERACTION_DUMP_TYPE, TRIE_TYPE
 from utils.trie.node import TrieNode
 
@@ -21,7 +21,16 @@ class MerkleTrie:
     def reset_update_history(self):
         self.update_history = []
 
-    def insert(self, key: str, value):
+    def insert(self, key: str, value, from_cache=False):
+        if from_cache:
+            _insert(self, key=key, value=value)
+        else:
+            # TODO: insert just through db calls
+            pass
+
+
+
+    def _insert(self, key: str, value):
         self.reset_update_history()
         # reverse the hexlified key
         rev_key_hex = list(reversed(hexlify(key)))
