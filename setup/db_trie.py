@@ -1,6 +1,6 @@
 from utils.trie.trie import MerkleTrie
-from db.db_interface import DB
-from db.mockdb import MOCK_DB
+from db.db_interfaces import DB
+from db.mock_local_db import MOCK_DB
 from config.db_cfg import DB_NAME, DB_FOLDER
 from config.env import DEV_CROP_FILENAME_AFTER
 import os

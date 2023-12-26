@@ -2,8 +2,9 @@ import plyvel
 from collections.abc import Mapping
 from typing import List, Tuple
 from typing_extensions import Literal
-from db.db_interface import DB_BASE
+from db.db_interfaces import DB_BASE
 
+# from config.db_cfg import DEV_DB_PATH
 
 class DB(DB_BASE):
 

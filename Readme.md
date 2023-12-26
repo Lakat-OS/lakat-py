@@ -18,3 +18,7 @@ Almost everything in Lakat is content addressable, except branches themselves. U
 
 Buckets have global namespace. Config, name resolution, submits, submit traces and the trie has branch-specific namespaces
 
+### Local Cache Database
+
+Every client has a local cache where it stores as much information as needed (or as possible) to avoid making too many calls. Some clients
+

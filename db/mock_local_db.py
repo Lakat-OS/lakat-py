@@ -47,8 +47,9 @@ class MOCK_DB(DB_BASE):
             self.db = path
         return path
 
-    def put(self, key:bytes, value: bytes, entry_type: str="db"):
+    def put(self, key:bytes, value: bytes):
 
+        
         file_path = os.path.join(self.db, key[:self.__crop_filename_after].decode('utf-8') + ".json")
         request_type = 'update' if os.path.exists(file_path) else 'put'
         # assign object type

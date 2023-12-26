@@ -1,0 +1,11 @@
+digraph flowchart {
+    start [label="Start", shape=ellipse];
+    decision1 [label="Decision?", shape=diamond];
+    decision1 -> operation1;
+    decision1 -> operation2;
+    operation1 [label="Operation 1", shape=box];
+    operation1 -> end;
+    operation2 [label="Operation 2", shape=box];
+    operation2 -> end;
+    end [label="End", shape=ellipse];
+}

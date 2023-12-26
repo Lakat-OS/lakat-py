@@ -1,5 +1,5 @@
 from ipld import marshal, multihash, unmarshal
-from db.database import DB
+from db.base import DB
 from lakat.branch import _newBranch
 from lakat.submit import _newSubmit
 from lakat.branch import createGenesisBranch    
