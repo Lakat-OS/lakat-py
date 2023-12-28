@@ -1,21 +1,39 @@
 import binascii
-from utils.encode.hashing import parse_cid, make_lakat_cid_and_serialize_from_suffix, deserialize
+from utils.encode.hashing import parse_cid, make_lakat_cid_and_serialize_from_suffix, deserialize, hexlify
 from typing import List, Tuple
+from config.encode_cfg import DEFAULT_CODEC
 
 
 class MerkleTrie:
 
-    def __init__(self, db, branch_suffix: bytes = bytes(0)):
+    def __init__(self, db, namespace: int, branch_suffix: bytes = bytes(0)):
         self.db = db
         self.cache = {}
         self.root = bytes(0)
-        self.__namespace = 4
+        self.__namespace = namespace
         self.branch_suffix = branch_suffix
-
         self.staged_root = bytes(0)
         self.staged_cache = {}
         self.staged_db = []
 
+    def set_root(self, codec=DEFAULT_CODEC):
+        _, staged = self.stage_root(codec=codec, inplace=True)
+        self.commit()
+        return staged["db"]
+
+    def stage_root(self, codec=DEFAULT_CODEC, inplace=True):
+        node = dict(value=None, children={}, path=[])
+        key, value = self.get_trie_key_value_from_node(node, codec=codec)
+        staged = dict(db=[(key, value)], cache={key: node})
+        if inplace:
+            self.staged_root = key
+            self.staged_cache = staged['cache']
+            self.staged_db = staged['db']
+        return key, staged
+
+    def get_trie_key_value_from_node(self, node: any, codec: int) -> Tuple[bytes, bytes]:
+        return make_lakat_cid_and_serialize_from_suffix(
+                node, codec=codec, namespace=self.__namespace, suffix=self.branch_suffix)
 
     def put(self, key: bytes, value, codec: int = 0x0) -> List[Tuple[bytes, bytes]]:
         _, staged = self.stage(key=key, value=value, codec=codec, inplace=True)
@@ -23,18 +41,20 @@ class MerkleTrie:
         return staged["db"]
     
 
-    def commit(self, staged_root=bytes(0), staged_db=[], staged_cache=dict(), inplace=True):
+    def commit(self, staged_root=bytes(0), staged_db=[], staged_cache=dict(), inplace=True, commit_to_db=True):
         if inplace:
-            for cid, serialized in self.staged_db:
-                self.db.put(cid, serialized)
+            if commit_to_db:
+                for cid, serialized in self.staged_db:
+                    self.db.put(cid, serialized)
             self.cache.update(self.staged_cache)
             self.root = self.staged_root
             self.staged_root = bytes(0)
             self.staged_cache = {}
             self.staged_db = []
         else:
-            for cid, serialized in staged_db:
-                self.db.put(cid, serialized)
+            if commit_to_db:
+                for cid, serialized in staged_db:
+                    self.db.put(cid, serialized)
             self.cache.update(staged_cache)
             self.root = staged_root
 
@@ -47,7 +67,8 @@ class MerkleTrie:
             current_codec = codec
         
         staged = dict(db=list(), cache=dict())
-        hex_path = binascii.hexlify(key)
+        hex_path = hexlify(key)
+        print("hex_path", hex_path)
         staged_root, staged = self._stage_recursive(current_cid=self.root, path=hex_path, value=value, codec=current_codec, staged=staged)
         if inplace:
             self.staged_root = staged_root
@@ -56,13 +77,13 @@ class MerkleTrie:
         return staged_root, staged
         
 
+
     def _stage_recursive(self, current_cid:bytes, path: List[int], value, codec: int, staged: dict, depth: int = 0) -> Tuple[bytes, dict]:
         
         if depth == len(path):
             # End of Leaf
             node = dict(value=value, children={}, path=path)
-            leaf_cid, leaf_serialized = make_lakat_cid_and_serialize_from_suffix(
-                node, codec=codec, namespace=self.__namespace, suffix=self.branch_suffix)
+            leaf_cid, leaf_serialized = self.get_trie_key_value_from_node(node, codec=codec)
             staged['db'].append((leaf_cid, leaf_serialized))
             staged['cache'][leaf_cid] = node
             return leaf_cid, staged
@@ -101,15 +122,14 @@ class MerkleTrie:
 
         # Update this node
         node["children"][char] = updated_child_cid
-        updated_cid, updated_serialized = make_lakat_cid_and_serialize_from_suffix(
-            node, codec=codec, namespace=self.__namespace, suffix=self.branch_suffix)
+        updated_cid, updated_serialized = self.get_trie_key_value_from_node(node, codec=codec)
         staged['db'].append((updated_cid, updated_serialized))
         staged['cache'][updated_cid] = node
         return updated_cid, staged
     
 
     def get(self, key: bytes) -> Tuple[any, bool]:
-        hex_path = binascii.hexlify(key)
+        hex_path = hexlify(key)
         return self._get_recursive(current_cid=self.root, path=hex_path)
 
     def _get_recursive(self, current_cid: bytes, path: List[int], depth: int = 0) -> Tuple[any, bool]:

@@ -181,6 +181,9 @@ def get_namespace_from_lakat_cid(lakat_cid: bytes):
     namespace, _ = varint_decode(digest_plus_suffix[digest_length:])
     return namespace
 
+
+def hexlify(data):
+    return [(byte >> 4 if high_nibble else byte & 0x0F) for byte in data for high_nibble in [True, False]]
     
 
 

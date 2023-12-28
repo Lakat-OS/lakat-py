@@ -17,5 +17,5 @@ flow_items = [
 
 dot_file_content = generate_dot(flow_items)
 
-with open('flowchart.dot', 'w') as file:
+with open('docs/flowchart.dot', 'w') as file:
     file.write(dot_file_content)
