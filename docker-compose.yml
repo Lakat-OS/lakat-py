@@ -1,0 +1,8 @@
+version: '3.7'
+services:
+  rpc-server:
+    build: .
+    ports:
+      - "3355:4000"
+    volumes:
+      - ./mockdb:/usr/src/app/mockdb

@@ -96,8 +96,10 @@ class MOCK_DB(DB_BASE):
 
         deserialized = deserialize(value, codec=codec_id)
 
-        if "msg" in deserialized:
-            deserialized["msg"] = decode_bytes(deserialized["msg"])
+        if "submit_msg" in deserialized:
+            print('deserialized["submit_msg"]', deserialized["submit_msg"])
+            deserialized["submit_msg"] = decode_bytes(deserialized["submit_msg"])
+            print('deserialized["submit_msg"]', deserialized["submit_msg"])
         
         data = {'unserialized': deserialized, 'serialized': key_encoder(value)}
 
@@ -106,10 +108,6 @@ class MOCK_DB(DB_BASE):
             if namespace == ns:
                 file_path = os.path.join(self.db, folder, self.get_filename(encoded_key) + ".json")
                 is_trie_data = True
-                print('is trie data of namespace ', ns)
-                # print encoded key and encoded cropped key
-                print('encoded key: ', encoded_key)
-                print('encoded cropped key: ', self.get_filename(encoded_key))
                 break
         if not is_trie_data:
             file_path = os.path.join(self.db, self.get_filename(encoded_key) + ".json")
@@ -130,7 +128,6 @@ class MOCK_DB(DB_BASE):
 
     
     def get(self, key:bytes) -> bytes :
-        print('we are requestions key: ', key)
         namespace = get_namespace_from_lakat_cid(key)
 
         encoded_key = key_encoder(key)
@@ -207,9 +204,18 @@ class MOCK_DB(DB_BASE):
 #         return results
 
 
-#     def close(self):
-#         # delete the directory and all its files
-#         shutil.rmtree(self.db)
+    def close(self):
+        # delete the directory and all its files
+        shutil.rmtree(self.db)
+
+    def restart(self, name=None):
+        self.close()
+        if name:
+            self.__create(name)
+            return name
+        else:
+            self.__create(self.name)
+            return self.name
 
 
 class PRIMITIVE_MOCK_DB:
