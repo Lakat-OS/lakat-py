@@ -99,6 +99,7 @@ def parse_lakat_cid(lakat_cid: bytes):
     if len(digest_plus_suffix)==digest_length:
         namespace = 0
         digest = digest_plus_suffix
+        suffix_length_length = 0
         branch_id = bytes()
         parent_branch_id = bytes()
         crop = 0
