@@ -10,7 +10,7 @@ from typing import Mapping
 db_path = os.path.abspath(os.path.join(os.getcwd(), DB_FOLDER))
 db_interface = MOCK_DB(path=db_path, name=DB_NAME, crop_filename_after=0)
 # db_interface = PRIMITIVE_MOCK_DB()
-Trie = MerkleTrie
-name_tries : Mapping[bytes, Trie] = dict()
-data_tries : Mapping[bytes, Trie] = dict()
+# Trie = MerkleTrie
+name_tries : Mapping[bytes, MerkleTrie] = dict()
+data_tries : Mapping[bytes, MerkleTrie] = dict()
 

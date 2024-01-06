@@ -166,6 +166,10 @@ def deserialize(data: bytes, codec: int) -> any:
         return cbor2.loads(data)
     else:
         raise Exception('No codec found')
+
+def deserialize_from_key(key: bytes, value: bytes) -> any:
+    version, codec_id, mh = parse_cid(key)
+    return deserialize(data=value, codec=codec_id)
     
 def get_namespace_from_lakat_cid(lakat_cid: bytes):
     # parse the lakat_cid into version, codec and multihash_plus_suffix

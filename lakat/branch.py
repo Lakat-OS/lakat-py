@@ -17,6 +17,7 @@ from lakat.timestamp import getTimestamp
 # from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
 from setup import storage
+from lakat.storage import create_data_trie, create_interaction_trie, create_name_trie
 
 
 
@@ -97,8 +98,11 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
 
     # CREATE NAME RESOLUTION ENTRIES
     # Name Resolution MerkleTrie
-    storage.name_tries[branch_id] = MerkleTrie(db=storage.db_interface, branch_suffix=branch_suffix, namespace=NAME_RESOLUTION_TRIE_NS)
+    create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix)
+
     name_res_root, name_res_content = storage.name_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
+    # TODO: make stage_root also a function and all the rest 
+
     # add to db backlog
     db_commits.extend(name_res_content["db"])
     # add to submit_trace_backlog
