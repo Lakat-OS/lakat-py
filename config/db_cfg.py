@@ -1,7 +1,10 @@
-DB_NAME = "lakat_test_1"
+DB_NAME = "lakat_test"
 DEV_TRIE_SUFFIX = "_trie_"
 DB_FOLDER = "mockdb"
 TRIE_TYPE = "trie"
 TRIE_INTERACTION_DUMP_TYPE = "interaction_dump"
-INTERACTION_TRIE_FOLDER = "interaction"
-TRIE_FOLDER = "trie"
+INTERACTION_TRIE_FOLDER = "interaction-trie"
+NAME_TRIE_FOLDER = "name-trie"
+DATA_TRIE_FOLDER = "data-trie"
+HASH_ENCODING_STYLE = "base58"
+NUMBER_OF_SUFFIXLESS_NAMESPACES = 10

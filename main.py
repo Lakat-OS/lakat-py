@@ -1,28 +1,40 @@
-from ipld import marshal, multihash, unmarshal
-from db.database import DB
-from lakat.branch import _newBranch
-from lakat.submit import _newSubmit
-from lakat.branch import createGenesisBranch    
+from werkzeug.wrappers import Request, Response
+from werkzeug.serving import run_simple
+import lakat.branch as lakat_branch
+import lakat.storage as lakat_storage
 
-db_name = 'lakat_test_1'
+from config.encode_cfg import ENCODING_FUNCTION
+from utils.encode.language import encode_string
+from utils.encode.bytes import key_encoder
+
+import math
+
+from jsonrpc import JSONRPCResponseManager, dispatcher
+
+@dispatcher.add_method
+def create_genesis_branch(branch_type: int, signature: str, accept_conflicts: bool, msg: str):
+    signature_bytes=signature.encode(ENCODING_FUNCTION)
+    encoded_msg=encode_string(msg, ENCODING_FUNCTION)
+    branchId = lakat_branch.create_genesis_branch(branch_type, signature_bytes, accept_conflicts, encoded_msg)
+    return key_encoder(branchId)
+
+@dispatcher.add_method
+def restart_db_with_name(name: str):
+    print("restart_db_with_name", name)
+    return lakat_storage.restart_db_with_name(name=name)
+
+@dispatcher.add_method
+def restart_db():
+    return lakat_storage.restart_db()
+
+@dispatcher.add_method
+def say_hello():
+    return "Hello, World!"
+
+@Request.application
+def application(request):
+    response = JSONRPCResponseManager.handle(request.data, dispatcher)
+    return Response(response.json, mimetype='application/json', )
 
 if __name__ == '__main__':
-    db = DB(name=db_name)
-    createGenesisBranch(
-        db=db,
-        branchType='proper',
-        acceptConflicts=True,
-        acceptedProofs={},
-        consensusProps={},
-        tokenProps={}
-    )
-    # db.put(b'key', b'value')
-    # val = db.get(b'keys')
-    # print('val',type(val))
-
-    with db.db.iterator() as it:
-        for k, v in it:
-
-            print('k',k, 'v',v)
-
-    db.close()
+    run_simple('0.0.0.0', 4000, application)

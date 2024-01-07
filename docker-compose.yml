@@ -1,0 +1,15 @@
+version: '3.7'
+services:
+  rpc-server:
+    build: .
+    ports:
+      - "3355:4000"
+    volumes:
+      - ./docker_db:/usr/src/app/mockdb
+
+  flask-service:
+    build: ./http-server
+    ports:
+      - "3356:3000"
+    depends_on:
+      - rpc-server

@@ -1,15 +1,16 @@
-from typing import List
+class BRANCH :
 
-class BRANCH:
-    def __init__(self, parentBranch: bytes or None, branchConfig: bytes, stableHead, nameResolution, sprouts: List[bytes], sproutSelection, branchToken, timestamp):
-        self.parentBranch = parentBranch
-        self.branchConfig = branchConfig
-        self.stableHead = stableHead
-        self.nameResolution = nameResolution
+    def __init__(self, id, parent_id, ns, stable_head, creation_ts, config, name_resolution, sprouts, sprout_selection, signature) :
+        self.id = id
+        self.ns = ns
+        self.parent_id = parent_id
+        self.stable_head = stable_head
+        self.config = config
         self.sprouts = sprouts
-        self.sproutSelection = sproutSelection
-        self.branchToken = branchToken
-        self.timestamp = timestamp
+        self.sprout_selection = sprout_selection
+        self.name_resolution = name_resolution
+        self.signature = signature
+        self.creation_ts = creation_ts
 
 
 # class SubmitStruct:

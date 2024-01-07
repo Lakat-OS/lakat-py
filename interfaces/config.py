@@ -1,6 +1,6 @@
 class CONFIG:
-    def __init__(self, branchType: int, acceptConficts: bool, acceptedProofs, consensusRoot):
+    def __init__(self, branchType: int, acceptConflicts: bool, acceptedProofs, consensusRoot):
         self.branchType = branchType
-        self.acceptConficts = acceptConficts
+        self.acceptConflicts = acceptConflicts
         self.acceptedProofs = acceptedProofs
         self.consensusRoot = consensusRoot
