@@ -171,7 +171,9 @@ class MOCK_DB(DB_BASE):
             if namespace == SUBMIT_NS:
                 deserialized["submit_msg"] = decode_bytes(deserialized["submit_msg"])
             if namespace == SUBMIT_TRACE_NS:
-                nR = [[decode_bytes(entry[0]), entry[1]] for entry in deserialized["nameResolution"] ]
+                nR = [
+                    [(decode_bytes(info) if j==0 else info) for j, info in enumerate(entry)] 
+                    for entry in deserialized["nameResolution"] ]
                 deserialized["nameResolution"] = nR
         
             data = {'unserialized': deserialized, 'serialized': key_encoder(value)}
