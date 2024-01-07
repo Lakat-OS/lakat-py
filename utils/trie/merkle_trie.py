@@ -65,13 +65,10 @@ class MerkleTrie:
  
     def stage(self, key: bytes, value, codec: int = 0x0, inplace=True) -> Tuple[bytes, dict]:
         # get codec from cid
-        print("codec in stage arguments is ", codec)
         if codec == 0x0:
             _, current_codec, _ = parse_cid(key)
         else:
             current_codec = codec
-        print("current codec in stage arguments is", current_codec, "of the key", key)
-        
 
         staged = dict(db=list(), cache=dict())
         hex_path = hexlify(key)

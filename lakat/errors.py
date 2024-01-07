@@ -38,3 +38,6 @@ ERR_N_TCS_1 = Exception("ERR_N_TCS_1: Branch not found")
 
 # Not Implemented Errors
 ERR_NIE_1 = NotImplementedError("ERR_NIE_1: check_inputs not implemented for this function")
+
+# Not found errors
+ERR_N_HASH_1 = Exception("ERR_N_HASH_1: Branch_ids need to be supplied!")

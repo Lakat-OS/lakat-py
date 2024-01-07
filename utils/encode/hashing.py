@@ -10,6 +10,8 @@ from config.env import DEV_ENVIRONMENT
 from config.encode_cfg import (
     ALGORITHM, ENCODING_FUNCTION)
 from config.dev_cfg import DEV_CID_CROP
+from config.db_cfg import NUMBER_OF_SUFFIXLESS_NAMESPACES
+from lakat.errors import ERR_N_HASH_1
 
 
 def encode_bytes_to_str(data: bytes):
@@ -79,12 +81,20 @@ def parse_cid(cid: bytes) -> Tuple[int, int, bytes]:
     multi_hash = cid[version_length + codec_length:]
     return version, codec, multi_hash
 
+def encode_ns(namespace: int):
+    return varint.encode(namespace)
+
 def encode_ns_and_suffix(namespace: int, suffix: bytes):
-    return varint.encode(namespace) + varint.encode(len(suffix)) + suffix
+    return encode_ns(namespace=namespace) + varint.encode(len(suffix)) + suffix
 
 def make_lakat_cid(codec:int, multi_hash: bytes, namespace: int, suffix: bytes):
     cid_1 = make_cid(version=1, codec=codec, multi_hash=multi_hash)
+    if namespace==0:
+        return cid_1
+    if namespace < NUMBER_OF_SUFFIXLESS_NAMESPACES:
+        return cid_1 + encode_ns(namespace=namespace)
     return cid_1 + encode_ns_and_suffix(namespace=namespace, suffix=suffix)
+
 
 def parse_lakat_cid(lakat_cid: bytes):
     # parse the lakat_cid into version, codec and multihash_plus_suffix
@@ -106,14 +116,21 @@ def parse_lakat_cid(lakat_cid: bytes):
     else:
         # decode the namespace and suffix
         namespace, namespace_length = varint_decode(digest_plus_suffix[digest_length:])
-        # Decode the suffix length varint
-        suffix_length, suffix_length_length = varint_decode(digest_plus_suffix[digest_length + namespace_length:])
-        # split the suffix in two
-        suffix = digest_plus_suffix[digest_length + namespace_length + suffix_length_length:]
+        # digest 
         digest = digest_plus_suffix[:digest_length]
-        crop = suffix_length
-        branch_id = suffix[0:int(crop/2)]
-        parent_branch_id = suffix[int(crop/2):]
+        if namespace < NUMBER_OF_SUFFIXLESS_NAMESPACES:
+            suffix_length_length = 0
+            crop = 0
+            branch_id = bytes()
+            parent_branch_id = bytes()
+        else:
+            # Decode the suffix length varint
+            suffix_length, suffix_length_length = varint_decode(digest_plus_suffix[digest_length + namespace_length:])
+            # split the suffix in two
+            suffix = digest_plus_suffix[digest_length + namespace_length + suffix_length_length:]
+            crop = suffix_length
+            branch_id = suffix[0:int(crop/2)]
+            parent_branch_id = suffix[int(crop/2):]
 
     return version, codec, alg_id, digest_length, digest, namespace, suffix_length_length, crop, branch_id, parent_branch_id        
 
@@ -137,10 +154,12 @@ def get_hashlib_algorithm_from_cid(cid: bytes) -> int:
 def make_lakat_cid_and_serialize(content: any, codec: int, namespace: int, branch_id_1: bytes, branch_id_2: bytes, crop: int):
     s = serialize(content=content, codec=codec)
     mh = get_multihash(s)
-    if namespace==0:
-        return make_cid(version=1, codec=codec, multi_hash=mh), s
+    if namespace<NUMBER_OF_SUFFIXLESS_NAMESPACES:
+        cid = make_lakat_cid(codec=codec, multi_hash=mh,namespace=namespace, suffix=bytes(0))
+        return cid, s
+    
     if branch_id_1 == bytes(0):
-        raise Exception("Branch_ids need to be supplied!")
+        raise ERR_N_HASH_1
     suffix = make_suffix_from_branch_ids(branch_id_1=branch_id_1, branch_id_2=branch_id_2, crop=crop)
     cid_1 = make_lakat_cid(codec=codec, multi_hash=mh, namespace=namespace, suffix=suffix)
     return cid_1, s
@@ -166,10 +185,12 @@ def deserialize(data: bytes, codec: int) -> any:
         return cbor2.loads(data)
     else:
         raise Exception('No codec found')
+    
 
 def deserialize_from_key(key: bytes, value: bytes) -> any:
     version, codec_id, mh = parse_cid(key)
     return deserialize(data=value, codec=codec_id)
+
     
 def get_namespace_from_lakat_cid(lakat_cid: bytes):
     # parse the lakat_cid into version, codec and multihash_plus_suffix

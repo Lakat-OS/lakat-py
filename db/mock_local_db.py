@@ -17,14 +17,16 @@ from config.db_cfg import (
     NAME_TRIE_FOLDER,
     DATA_TRIE_FOLDER,
     HASH_ENCODING_STYLE,
-    TRIE_INTERACTION_DUMP_TYPE)
+    TRIE_INTERACTION_DUMP_TYPE,
+    NUMBER_OF_SUFFIXLESS_NAMESPACES)
 
 from db.namespaces import (
     BRANCH_NS,
-    BUCKET_NS,
     NAME_RESOLUTION_TRIE_NS,
     INTERACTION_TRIE_NS,
-    DATA_TRIE_NS)
+    DATA_TRIE_NS,
+    SUBMIT_NS,
+    SUBMIT_TRACE_NS)
 
 from utils.encode.hashing import deserialize, parse_lakat_cid, get_namespace_from_lakat_cid
 from utils.encode.language import decode_bytes
@@ -152,14 +154,12 @@ class MOCK_DB(DB_BASE):
          digest, 
          namespace, 
          suffix_length_length, 
-         crop, 
+         crop,
          branch_id, 
          parent_branch_id) = parse_lakat_cid(key)
 
-        if namespace in [BRANCH_NS, BUCKET_NS]:
-            deserialized = value
+        if namespace == BRANCH_NS:
             data = {
-                'raw': deserialized, 
                 'info': {
                     "key-raw": repr(key), 
                     "key-encoded": encoded_key, 
@@ -168,8 +168,11 @@ class MOCK_DB(DB_BASE):
                 'serialized': key_encoder(value)}
         else:
             deserialized = deserialize(value, codec=codec_id)
-            if "submit_msg" in deserialized:
+            if namespace == SUBMIT_NS:
                 deserialized["submit_msg"] = decode_bytes(deserialized["submit_msg"])
+            if namespace == SUBMIT_TRACE_NS:
+                nR = [[decode_bytes(entry[0]), entry[1]] for entry in deserialized["nameResolution"] ]
+                deserialized["nameResolution"] = nR
         
             data = {'unserialized': deserialized, 'serialized': key_encoder(value)}
 
