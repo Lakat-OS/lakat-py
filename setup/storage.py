@@ -13,4 +13,5 @@ db_interface = MOCK_DB(path=db_path, name=DB_NAME, crop_filename_after=0)
 # Trie = MerkleTrie
 name_tries : Mapping[bytes, MerkleTrie] = dict()
 data_tries : Mapping[bytes, MerkleTrie] = dict()
+interaction_tries : Mapping[bytes, MerkleTrie] = dict()
 

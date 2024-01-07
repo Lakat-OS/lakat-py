@@ -17,7 +17,9 @@ def decode_base58_str_to_bytes(base58_str: str):
 
 if HASH_ENCODING_STYLE == "base58":
     key_encoder = encode_bytes_to_base58_str
+    key_decoder = decode_base58_str_to_bytes
 elif HASH_ENCODING_STYLE == "base64":
     key_encoder = encode_bytes_to_base64_str
+    key_decoder = decode_base64_str_to_bytes
 else:
     raise Exception("Unsupported encoding style: " + HASH_ENCODING_STYLE)

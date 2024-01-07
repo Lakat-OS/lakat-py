@@ -1,7 +1,7 @@
 
 # from setup.db_trie import db
 from setup.db_trie import cached_tries, db
-from utils.trie.trie import MerkleTrie
+from utils.trie.merkle_trie import MerkleTrie
 
 
 def trie_insert(branchId, key, value):

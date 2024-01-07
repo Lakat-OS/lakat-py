@@ -16,12 +16,14 @@ class MerkleTrie:
         self.staged_cache = {}
         self.staged_db = []
 
-    def set_root(self, codec=DEFAULT_CODEC):
+    def set_root(self, codec=0x0):
         _, staged = self.stage_root(codec=codec, inplace=True)
         self.commit()
         return staged["db"]
 
-    def stage_root(self, codec=DEFAULT_CODEC, inplace=True):
+    def stage_root(self, codec=0x0, inplace=True):
+        codec == (DEFAULT_CODEC if codec==0x0 else codec)
+
         node = dict(value=None, children={}, path=[])
         key, value = self.get_trie_key_value_from_node(node, codec=codec)
         staged = dict(db=[(key, value)], cache={key: node})
@@ -34,6 +36,7 @@ class MerkleTrie:
     def get_trie_key_value_from_node(self, node: any, codec: int) -> Tuple[bytes, bytes]:
         return make_lakat_cid_and_serialize_from_suffix(
                 node, codec=codec, namespace=self.__namespace, suffix=self.branch_suffix)
+
 
     def put(self, key: bytes, value, codec: int = 0x0) -> List[Tuple[bytes, bytes]]:
         _, staged = self.stage(key=key, value=value, codec=codec, inplace=True)
@@ -59,16 +62,19 @@ class MerkleTrie:
             self.root = staged_root
 
 
+ 
     def stage(self, key: bytes, value, codec: int = 0x0, inplace=True) -> Tuple[bytes, dict]:
         # get codec from cid
+        print("codec in stage arguments is ", codec)
         if codec == 0x0:
             _, current_codec, _ = parse_cid(key)
         else:
             current_codec = codec
+        print("current codec in stage arguments is", current_codec, "of the key", key)
         
+
         staged = dict(db=list(), cache=dict())
         hex_path = hexlify(key)
-        print("hex_path", hex_path)
         staged_root, staged = self._stage_recursive(current_cid=self.root, path=hex_path, value=value, codec=current_codec, staged=staged)
         if inplace:
             self.staged_root = staged_root
@@ -76,6 +82,7 @@ class MerkleTrie:
             self.staged_db = staged['db']
         return staged_root, staged
         
+
 
 
     def _stage_recursive(self, current_cid:bytes, path: List[int], value, codec: int, staged: dict, depth: int = 0) -> Tuple[bytes, dict]:

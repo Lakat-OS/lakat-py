@@ -20,13 +20,15 @@ from config.db_cfg import (
     TRIE_INTERACTION_DUMP_TYPE)
 
 from db.namespaces import (
+    BRANCH_NS,
+    BUCKET_NS,
     NAME_RESOLUTION_TRIE_NS,
     INTERACTION_TRIE_NS,
     DATA_TRIE_NS)
 
 from utils.encode.hashing import deserialize, parse_lakat_cid, get_namespace_from_lakat_cid
 from utils.encode.language import decode_bytes
-from utils.encode.bytes import key_encoder
+from utils.encode.bytes import key_encoder, key_decoder
 from utils.encode.json import jsondump
 
 trie_folders = {
@@ -42,6 +44,8 @@ class MOCK_DB(DB_BASE):
         self.__path = path
         self.__crop_filename_after = crop_filename_after
         self.db : str = self.__create(name, and_assign_to_db=False)
+        self.staged = dict()
+        self.staged_indices = list()
     
     def __create(self, name:str, and_assign_to_db=True) :
         path = os.path.join(self.__path, name)
@@ -73,58 +77,28 @@ class MOCK_DB(DB_BASE):
             return filename[:self.__crop_filename_after]
     
 
+    def stage(self, key:bytes, value: bytes):
+        staged, staged_indices = self._create_new_db_entries(key, value)
+        self.staged.update(staged)
+        self.staged_indices.extend(staged_indices)
+
+    
+    def stage_many(self, entries: List[Tuple[bytes, bytes]]):
+        for key, value in entries:
+            self.stage(key, value)
+        
+
+    def commit(self):
+        ## first commit all the self.staged entries 
+        self._push_staged(self.staged, self.staged_indices)
+        ## reset the staged entries
+        self.staged = dict()
+        self.staged_indices = list()
+
 
     def put(self, key:bytes, value: bytes):
-
-        encoded_key = key_encoder(key)
-        
-        file_path = os.path.join(self.db, self.get_filename(encoded_key)+ ".json")
-
-        request_type = 'update' if os.path.exists(file_path) else 'put'
-        
-        # get all information from the key
-        (version, 
-         codec_id, 
-         alg_id, 
-         digest_length, 
-         digest, 
-         namespace, 
-         suffix_length_length, 
-         crop, 
-         branch_id, 
-         parent_branch_id) = parse_lakat_cid(key)
-
-        deserialized = deserialize(value, codec=codec_id)
-
-        if "submit_msg" in deserialized:
-            print('deserialized["submit_msg"]', deserialized["submit_msg"])
-            deserialized["submit_msg"] = decode_bytes(deserialized["submit_msg"])
-            print('deserialized["submit_msg"]', deserialized["submit_msg"])
-        
-        data = {'unserialized': deserialized, 'serialized': key_encoder(value)}
-
-        is_trie_data = False
-        for ns, folder in trie_folders.items():
-            if namespace == ns:
-                file_path = os.path.join(self.db, folder, self.get_filename(encoded_key) + ".json")
-                is_trie_data = True
-                break
-        if not is_trie_data:
-            file_path = os.path.join(self.db, self.get_filename(encoded_key) + ".json")
-
-        with open(file_path, 'w') as file:
-            jsondump(data, file)
-
-        if not namespace in trie_folders:
-            if suffix_length_length == 0:
-                peri = ""
-                core = ""
-            else:
-                peri = key_encoder(branch_id)
-                core = key_encoder(parent_branch_id)
-
-            self.update_index(request_type=request_type, namespace=namespace, alg_id=alg_id, 
-                codec_id=codec_id, digest=key_encoder(digest), core=core, peri=peri, file_path=file_path, key=repr(key))
+        staged, staged_indices = self._create_new_db_entries(key, value)
+        self._push_staged(staged, staged_indices)
 
     
     def get(self, key:bytes) -> bytes :
@@ -147,61 +121,114 @@ class MOCK_DB(DB_BASE):
         
         with open(file_path, 'r') as file:
             data = json.load(file)
-            return data['serialized']
+            return key_decoder(data['serialized'])
         
+
+    def get_new_index_entry(self, request_type, namespace, alg_id, codec_id, digest, core, peri, file_path, key):
+        return {
+            'request-type': request_type,
+            'namespace': namespace,
+            'codec': multicodec.constants.CODE_TABLE[codec_id],
+            'hash-algorithm': multihash.constants.CODE_HASHES[alg_id],
+            'digest': digest,
+            'core': core,
+            'peri': peri,
+            'timestamp': time.time(),
+            'filepath': file_path,
+            'key': key}
+
+
     
-    def update_index(self, request_type, namespace, alg_id, codec_id, digest, core, peri, file_path, key):
+    def _create_new_db_entries(self, key:bytes, value: bytes):
+        encoded_key = key_encoder(key)
+        
+        file_path = os.path.join(self.db, self.get_filename(encoded_key)+ ".json")
+        
+        # get all information from the key
+        (version, 
+         codec_id, 
+         alg_id, 
+         digest_length, 
+         digest, 
+         namespace, 
+         suffix_length_length, 
+         crop, 
+         branch_id, 
+         parent_branch_id) = parse_lakat_cid(key)
+
+        if namespace in [BRANCH_NS, BUCKET_NS]:
+            deserialized = value
+            data = {
+                'raw': deserialized, 
+                'info': {
+                    "key-raw": repr(key), 
+                    "key-encoded": encoded_key, 
+                    "value-raw": repr(value), 
+                    "value-encoded": key_encoder(value)},
+                'serialized': key_encoder(value)}
+        else:
+            deserialized = deserialize(value, codec=codec_id)
+            if "submit_msg" in deserialized:
+                deserialized["submit_msg"] = decode_bytes(deserialized["submit_msg"])
+        
+            data = {'unserialized': deserialized, 'serialized': key_encoder(value)}
+
+        is_trie_data = False
+        for ns, folder in trie_folders.items():
+            if namespace == ns:
+                file_path = os.path.join(self.db, folder, self.get_filename(encoded_key) + ".json")
+                is_trie_data = True
+                break
+        if not is_trie_data:
+            file_path = os.path.join(self.db, self.get_filename(encoded_key) + ".json")
+
+        request_type = 'update' if os.path.exists(file_path) else 'put'
+
+        staged = {file_path: data}
+        staged_indices = list()
+
+        if not namespace in trie_folders:
+            if suffix_length_length == 0:
+                peri = ""
+                core = ""
+            else:
+                peri = key_encoder(branch_id)
+                core = key_encoder(parent_branch_id)
+
+            new_index_entry = self.get_new_index_entry(request_type=request_type, namespace=namespace, alg_id=alg_id, codec_id=codec_id, digest=key_encoder(digest), core=core, peri=peri, file_path=file_path, key=repr(key))
+            
+            staged_indices.append(new_index_entry)
+        
+        return staged, staged_indices
+    
+
+    def _push_staged(self, staged, staged_indices):
+        ## first commit all the self.staged entries 
+        for file_path, data in staged.items():
+            with open(file_path, 'w') as file:
+                jsondump(data, file)
+        ## then commit all the index entries
         with open(os.path.join(self.db, "index.json"), "r") as f:
             index = json.load(f)
-
-            index.append({
-                'request-type': request_type,
-                'namespace': namespace,
-                'codec': multicodec.constants.CODE_TABLE[codec_id],
-                'hash-algorithm': multihash.constants.CODE_HASHES[alg_id],
-                'digest': digest,
-                'core': core,
-                'peri': peri,
-                'timestamp': time.time(),
-                'filepath': file_path,
-                'key': key
-            })
-
+            index.extend(staged_indices)
         with open(os.path.join(self.db, "index.json"), "w") as f:
             jsondump(index, f)
 
-    # def delete(self, key:bytes, entry_type: str="db"):
-    #     if entry_type == TRIE_TYPE:
-    #         file_path = os.path.join(self.db, TRIE_FOLDER, key[:self.__crop_filename_after].decode('utf-8') + ".json")
-    #     elif entry_type == TRIE_INTERACTION_DUMP_TYPE:
-    #         file_path = os.path.join(self.db, INTERACTION_TRIE_FOLDER, key[:self.__crop_filename_after].decode('utf-8') + ".json")
-    #     else:
-    #         file_path = os.path.join(self.db, key[:self.__crop_filename_after].decode('utf-8') + ".json")
 
-
-    #     # remove the file
-    #     os.remove(file_path)
-
-    #     if entry_type != TRIE_TYPE:
-    #         request_type = 'delete'
-    #         object_type = 'unknown'
-    #         self.update_index(request_type, object_type, file_path, key.decode('utf-8'))
-
-
-#     def multiquery(self, queries: List[Tuple[Literal["put", "get", "delete"], List[bytes]]]) -> List[Tuple[Literal["put", "get", "delete"], bool or bytes]]:
-#         results = list()
-#         for queryType, arguments in queries:
-#             if queryType == "put":
-#                 self.put(arguments[0], arguments[1])
-#                 results.append((queryType, True))
-#             elif queryType == "get":
-#                 results.append((queryType, self.get(arguments[0])))
-#             elif queryType == "delete":
-#                 self.delete(arguments[0])
-#                 results.append((queryType, True))
-#             else:
-#                 raise Exception("Invalid query type")
-#         return results
+    def multiquery(self, queries: List[Tuple[Literal["put", "get", "delete"], List[bytes]]]) -> List[Tuple[Literal["put", "get", "delete"], bool or bytes]]:
+        results = list()
+        for queryType, arguments in queries:
+            if queryType == "put":
+                self.put(arguments[0], arguments[1])
+                results.append((queryType, True))
+            elif queryType == "get":
+                results.append((queryType, self.get(arguments[0])))
+            elif queryType == "delete":
+                self.delete(arguments[0])
+                results.append((queryType, True))
+            else:
+                raise Exception("Invalid query type")
+        return results
 
 
     def close(self):

@@ -13,7 +13,7 @@ from config.bucket_cfg import (
 from config.encode_cfg import ENCODING_FUNCTION
 from utils.schemata.bucket import check_schema
 from setup.db_trie import db
-from lakat.trie import get_trie, 
+from lakat.trie import get_trie
 
 
 def prepare_atomic_bucket(content_dict: Dict[str, bytes]) -> bytes:

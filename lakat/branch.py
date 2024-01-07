@@ -12,13 +12,19 @@ from utils.encode.hashing import (
 from utils.encode.language import encode_string
 from config.env import DEV_ENVIRONMENT
 from config.encode_cfg import DEFAULT_SUFFIX_CROP, DEV_SUFFIX_CROP, DEFAULT_CODEC
-from db.namespaces import (BRANCH_NS, DATA_TRIE_NS, NAME_RESOLUTION_TRIE_NS, CONFIG_NS, SUBMIT_NS, SUBMIT_TRACE_NS, TOKEN_NS, NAME_RESOLUTION_NS)
+from db.namespaces import (BRANCH_NS, BRANCH_HEAD_NS, DATA_TRIE_NS, NAME_RESOLUTION_TRIE_NS, CONFIG_NS, SUBMIT_NS, SUBMIT_TRACE_NS, TOKEN_NS, NAME_RESOLUTION_NS)
 from lakat.timestamp import getTimestamp
 # from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
-from setup import storage
-from lakat.storage import create_data_trie, create_interaction_trie, create_name_trie
-
+from lakat.storage import (
+    create_data_trie, 
+    create_interaction_trie, 
+    create_name_trie,
+    stage_to_db, stage_many_to_db, commit_to_db,
+    stage_data_trie, stage_interaction_trie, stage_name_trie,
+    stage_data_trie_root, stage_interaction_trie_root, stage_name_trie_root,
+    commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
+    
 
 
 def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: bool, msg: bytes):
@@ -35,13 +41,10 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     parent_submit_id = bytes(0)
 
 
-    ## ALL DATABASE_COMMITS ### 
-    db_commits = list()
-
+    # submit trace dict
     submit_trace_dict = dict(
         config=b"",
-        trie=list(),
-        submit=list(),
+        newBranchHead=b"",
         changesTrace=[],
         pullRequests=[],
         nameResolution=[],
@@ -62,10 +65,18 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     ## DEFINE TIMESTAMP
     creation_ts = getTimestamp()
 
+
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
     branch_params = dict(parent_id=parent_id, creation_ts=creation_ts, signature=signature)
     # create branch id
-    branch_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_NS, branch_id_1=bytes(0), branch_id_2=bytes(0), crop=suffix_crop)
+    branch_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_NS, branch_id_1=bytes(0), branch_id_2=parent_id, crop=suffix_crop)
+    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=parent_id, crop=suffix_crop)
+    # add to db backlog
+    stage_to_db(branch_id, branch_head_id)
+    # add to submit_trace_backlog
+    submit_trace_dict["newBranchHead"] = branch_head_id
+
+
     # create namespace and add branch id and namespace to branch params
     # scrambled_id = scramble_id(branch_id)
     branch_suffix = make_suffix_from_branch_ids(branch_id_1=branch_id, branch_id_2=parent_id, crop=suffix_crop)
@@ -81,7 +92,8 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     config_cid, config_serialized = make_lakat_cid_and_serialize_from_suffix(
         content=config.__dict__, codec=DEFAULT_CODEC, namespace=CONFIG_NS, suffix=branch_suffix)
     # add to db backlog
-    db_commits.append((config_cid, config_serialized))
+    stage_to_db(config_cid, config_serialized)
+
     # add to submit_trace_backlog
     submit_trace_dict["config"] = config_cid
     # update branch params
@@ -99,12 +111,10 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     # CREATE NAME RESOLUTION ENTRIES
     # Name Resolution MerkleTrie
     create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix)
-
-    name_res_root, name_res_content = storage.name_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
-    # TODO: make stage_root also a function and all the rest 
-
+    name_res_root, name_res_content = stage_name_trie_root(branch_id=branch_id, inplace=False)
     # add to db backlog
-    db_commits.extend(name_res_content["db"])
+    stage_many_to_db(entries=name_res_content["db"])
+
     # add to submit_trace_backlog
     submit_trace_dict["nameResolutionRoot"] = name_res_root
     # update branch params
@@ -116,13 +126,15 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     submit_trace_cid, submit_trace_serialized = make_lakat_cid_and_serialize_from_suffix(
         content=submit_trace.__dict__, codec=DEFAULT_CODEC, namespace=SUBMIT_TRACE_NS, suffix=branch_suffix)
     # add to db backlog
-    db_commits.append((submit_trace_cid, submit_trace_serialized))
+    stage_to_db(submit_trace_cid, submit_trace_serialized)
 
     # CREATE DATA TRIE AND POPULATE
-    storage.data_tries[branch_id] = MerkleTrie(db=storage.db_interface, branch_suffix=branch_suffix, namespace=DATA_TRIE_NS)
-    data_trie_root, data_trie_content = storage.data_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
+    # storage.data_tries[branch_id] = MerkleTrie(db=storage.db_interface, branch_suffix=branch_suffix, namespace=DATA_TRIE_NS)
+    # data_trie_root, data_trie_content = storage.data_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
+    create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix)
+    data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, inplace=False)
     # add to db backlog
-    db_commits.extend(data_trie_content["db"])
+    stage_many_to_db(entries=data_trie_content["db"])
 
 
     # CREATE SUBMIT
@@ -131,32 +143,33 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     submit_cid, submit_serialized = make_lakat_cid_and_serialize_from_suffix(
         content=submit.__dict__, codec=DEFAULT_CODEC, namespace=SUBMIT_NS, suffix=branch_suffix)
     # add to db backlog
-    db_commits.append((submit_cid, submit_serialized))
+    stage_to_db(submit_cid, submit_serialized)
     # update branch params
     branch_params.update(dict(stable_head=submit_cid))
 
     # CREATE BRANCH OBJECT
     branch = BRANCH(**branch_params)
     # serialize config and add to db and trie backlog
-    branch_cid, branch_serialized = make_lakat_cid_and_serialize_from_suffix(
+    _, branch_serialized = make_lakat_cid_and_serialize_from_suffix(
         content=branch.__dict__, codec=DEFAULT_CODEC, namespace=BRANCH_NS, suffix=branch_suffix)
     # add to db backlog
-    db_commits.append((branch_cid, branch_serialized))
+    stage_to_db(branch_head_id, branch_serialized)
 
 
-    ## COMMIT ALL DATABASE COMMITS TO DB
-    for cid, serialized in db_commits :
-        storage.db_interface.put(cid, serialized)
     ## COMMIT ALL TRIE CHANGES
-    storage.name_tries[branch_id].commit(
+    trie_commit_default_params = dict(inplace=False, commit_to_db=False)
+    commit_name_trie_changes(branch_id=branch_id, 
         staged_root=name_res_root, 
         staged_db=name_res_content["db"], 
         staged_cache=name_res_content["cache"], 
-        inplace=False, commit_to_db=False)
-    storage.data_tries[branch_id].commit(
+        **trie_commit_default_params)
+    commit_data_trie_changes(branch_id=branch_id,
         staged_root=data_trie_root, 
         staged_db=data_trie_content["db"],
         staged_cache=data_trie_content["cache"],
-        inplace=False, commit_to_db=False)
+        **trie_commit_default_params)
+    
+    ## COMMIT ALL DATABASE COMMITS TO DB
+    commit_to_db()
     
     return branch_id
