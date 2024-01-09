@@ -23,6 +23,9 @@ ERR_V_CGB_1 = ValueError("ERR_V_CGB_1: branch_type must be either 'proper' (= 0)
 # Type Errors
 ERR_T_BCKT_1 = Exception("ERR_T_BCKT_1: Invalid bucket id type")
 
+# Schema Errors
+ERR_S_BCKT_1 = lambda msg: Exception("ERR_S_BCKT_1: Invalid bucket schema: {}".format(msg))
+
 ################################################################
 ### TWIG CONTENT SUBMIT ########################################
 ################################################################
@@ -41,3 +44,12 @@ ERR_NIE_1 = NotImplementedError("ERR_NIE_1: check_inputs not implemented for thi
 
 # Not found errors
 ERR_N_HASH_1 = Exception("ERR_N_HASH_1: Branch_ids need to be supplied!")
+
+
+################################################################
+### ENCODE ERRORS ##############################################
+################################################################
+
+# Type Errors
+ERR_N_ENC_1 = Exception("ERR_N_ENC_1: Unsupported encoding type")
+ERR_T_ENC_1 = TypeError("ERR_T_ENC_2: encoding_type must be of type str")

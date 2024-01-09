@@ -3,7 +3,7 @@ services:
   rpc-server:
     build: .
     ports:
-      - "3355:4000"
+      - "3355:3355"
     volumes:
       - ./docker_db:/usr/src/app/mockdb
 

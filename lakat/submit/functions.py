@@ -1,4 +1,4 @@
-from lakat.bucket import prepare_bucket, get_bucket_ids_from_order
+from lakat.bucket.functions import prepare_bucket, get_bucket_ids_from_order
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
 from utils.encode.hashing import (
@@ -16,6 +16,7 @@ from lakat.check import check_inputs
 from lakat.storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_to_db, get_from_db, stage_many_to_db, stage_to_db, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
 from config.encode_cfg import ENCODING_FUNCTION
 from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1)
+
 
 
 def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, proof: bytes, msg: bytes):
@@ -52,7 +53,6 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
 
     ## FETCH BRANCH
     branch_head_id = get_from_db(branch_id)
-    print('branch_head_id', branch_head_id, type(branch_head_id))
     branch_serialized = get_from_db(branch_head_id)
     if not branch_serialized:
         raise ERR_N_TCS_1

@@ -6,7 +6,7 @@ from config.bucket_cfg import (
     DEFAULT_REGISTRY_BUCKET_SCHEMA,
     DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA)
 from config.dev_cfg import DEV_ENVIRONMENT
-from lakat.bucket import (
+from lakat.bucket_old import (
     getBucketContentIdsAndNameRegistrations,
     getDBSubmitsFromBuckets,
     getNameRegistryBucketId,
@@ -22,11 +22,10 @@ from lakat.trie import (
     trie_insert,
     trie_retrieve_value,
     trie_get_root_hash)
-from utils.trie.trie import hexlify
+from utils.trie.merkle_trie import hexlify
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
 
-from setup.db_trie import db
 
 
 def create_branch(targetBranchId: str, public_key: str, submitId: str, msg: str, config: str) -> dict:

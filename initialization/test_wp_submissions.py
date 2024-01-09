@@ -3,7 +3,7 @@ from utils.serialize import serialize
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA, BUCKET_ID_TYPE_NO_REF, BUCKET_ID_TYPE_WITH_ID_REF
 from config.scrape_cfg import EXAMPLE_ARTICLE_TITLE
 from initialization.test_interaction import getDefaultEmptyInteractions
-from lakat.submit import content_submit
+from lakat.submit_old import content_submit
 from initialization.wp_structured_diffs import Diff
 
 def first_submit(edit, public_key, branchId):

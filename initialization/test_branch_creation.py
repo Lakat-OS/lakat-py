@@ -1,7 +1,7 @@
 from config.bucket_cfg import DEFAULT_NAME_RESOLUTION_BUCKET_SCHEMA
 from utils.serialize import serialize
 from initialization.test_interaction import getDefaultEmptyInteractions
-from lakat.submit import content_submit
+from lakat.submit_old import content_submit
 
 def branch_creation(public_key, verbose=True):
     branchId = None
