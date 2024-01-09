@@ -2,10 +2,8 @@ from flask import Flask, request, jsonify
 import requests
 import json
 
-print(dir(requests))
-
 app = Flask(__name__)
-RPC_SERVER_URL = 'http://rpc-server:4000'  # Adjust if necessary
+RPC_SERVER_URL = 'http://rpc-server:3355'  # TODO: Adjust Take from env
 # RPC_SERVER_URL = "http://127.0.0.1:4000"
 
 def json_rpc_call(method, params):
@@ -23,6 +21,11 @@ def json_rpc_call(method, params):
 def create_genesis_branch():
     data = request.json
     return jsonify(json_rpc_call("create_genesis_branch", data))
+
+@app.route('/submit_content_to_twig', methods=['POST'])
+def submit_content_to_twig():
+    data = request.json
+    return jsonify(json_rpc_call("submit_content_to_twig", data))
 
 @app.route('/restart_db_with_name', methods=['POST'])
 def restart_db_with_name():

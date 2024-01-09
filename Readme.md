@@ -22,3 +22,11 @@ Buckets have global namespace. Config, name resolution, submits, submit traces a
 
 Every client has a local cache where it stores as much information as needed (or as possible) to avoid making too many calls. Some clients
 
+
+## Testing
+
+```
+curl -X POST http://localhost:3356/create_genesis_branch \
+-H "Content-Type: application/json" \
+-d '{"branch_type": 1, "signature": "V2VsdA==", "accept_conflicts": false, "msg": "V2VsdA=="}'
+```
