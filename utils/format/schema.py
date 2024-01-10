@@ -3,7 +3,7 @@ from typing import List, Mapping
 from config.encode_cfg import ENCODING_FUNCTION
 from utils.encode.bytes import decode_base64_str_to_bytes, encode_bytes_to_base64_str
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
-
+from utils.encode.language import encode_string
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
@@ -38,9 +38,14 @@ def check_argument(arg, schema):
 def convert_bytes_based_on_schema(schema, data, conversion: callable, error_messages=""):
     try:
         # Base case: if the data matches a base64-encoded byte string schema
-        if schema.get('type') == 'string' and schema.get('format') == 'byte':
-            return conversion(data), False, error_messages
-
+        if schema.get('type') == 'string':
+            if schema.get('format') == 'byte':
+                return conversion(data), False, error_messages
+            elif schema.get('varint_encoded') == 'true':
+                return encode_string(data, ENCODING_FUNCTION), False, error_messages
+            else:
+                # TODO: What to do in this case
+                return conversion(data), False, error_messages
         # Handle objects (dicts in Python)
         elif schema.get('type') == 'object' and 'properties' in schema:
             if not isinstance(data, dict):
