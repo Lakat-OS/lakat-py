@@ -1,4 +1,4 @@
-DB_NAME = "lakat_test"
+DB_NAME = "lakat_test_Jan_10"
 DEV_TRIE_SUFFIX = "_trie_"
 DB_FOLDER = "mockdb"
 TRIE_TYPE = "trie"

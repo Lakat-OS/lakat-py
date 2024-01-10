@@ -11,4 +11,5 @@ def wrap_rpc_call(function: callable, call_schema: dict, response_schema: dict, 
     if "msg" in converted_kwargs:
         converted_kwargs["msg"] = encode_string(converted_kwargs["msg"], ENCODING_FUNCTION)
     # call function and convert result to stringified bytes dictionary
+    print("converted_kwargs", converted_kwargs)
     return convert_from_bytes_based_on_schema(schema=response_schema, data=function(**converted_kwargs))
