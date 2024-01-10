@@ -1,7 +1,7 @@
 atomic_bucket_content_schema = {
     "type": "object",
     "properties": {
-        "data": {"type": "string", "format": "byte", "varint_encoded": "true"},
+        "data": {"type": "string", "varint_encoded": "true"},
         "schema": {"type": ["integer", "string"]},
         "parent_id": {"type": "string", "format": "byte", "varint_encoded": "false"},
         "signature": {"type": "string", "format": "byte", "varint_encoded": "false"},
@@ -19,7 +19,7 @@ molecular_bucket_content_schema = {
         "data": {
             "type": "object",
             "properties": {
-                "name": {"type": "string", "format": "byte", "varint_encoded": "true"},
+                "name": {"type": "string", "varint_encoded": "true"},
                 "order": {
                     "type": "array",
                     "items": {
@@ -27,7 +27,7 @@ molecular_bucket_content_schema = {
                         "properties": {
                             "id": {
                                 "oneOf": [
-                                    {"type": "string", "format": "byte", "varint_encoded": "false"},
+                                    {"type": "string", "format": "byte"},
                                     {"type": "integer"}, 
                                     {"type": "string"}
                                 ]
@@ -46,11 +46,11 @@ molecular_bucket_content_schema = {
             "required": ["name", "order"]
         },
         "schema": {"type": ["integer", "string"]},
-        "parent_id": {"type": "string", "format": "byte", "varint_encoded": "false"},
-        "signature": {"type": "string", "format": "byte", "varint_encoded": "false"},
+        "parent_id": {"type": "string", "format": "byte"},
+        "signature": {"type": "string", "format": "byte"},
         "refs": {
             "type": "array",
-            "items": {"type": "string", "format": "byte", "varint_encoded": "false"}
+            "items": {"type": "string", "format": "byte"}
         }
     },
     "required": ["data", "schema", "parent_id", "signature", "refs"]
@@ -69,10 +69,10 @@ bucket_contents_schema = {
 submit_content_for_twig_call = {
     "type": "object",
     "properties": {
-        "branch_id": {"type": "string", "format": "byte", "varint_encoded": "false"},  # base64-encoded bytes
+        "branch_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
         "contents": bucket_contents_schema,
-        "public_key": {"type": "string", "format": "byte", "varint_encoded": "false"},  # base64-encoded bytes
-        "proof": {"type": "string", "format": "byte", "varint_encoded": "false"},  # base64-encoded bytes
+        "public_key": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "proof": {"type": "string", "format": "byte"},  # base64-encoded bytes
         "msg": {"type": "string", "varint_encoded": "true"}
     },
     "required": ["branch_id", "contents", "public_key", "proof", "msg"]

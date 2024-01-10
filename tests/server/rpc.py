@@ -38,7 +38,7 @@ def test_create_genesis_branch():
 def test_submit_content_to_twig():
 
     branch_type = 1  # Example branch type
-    signature = encode_bytes_to_base64_str(b"example_signature")
+    signature = encode_bytes_to_base64_str(bytes(0))
     accept_conflicts = False
     msg = "Test genesis branch message"
 
@@ -47,22 +47,49 @@ def test_submit_content_to_twig():
 
     branch_id = response["result"]
 
+    # contents = [
+    #     {"data": encode_bytes_to_base64_str("Hallo".encode(ENCODING_FUNCTION)),  
+    #     "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
+    #     "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)), 
+    #     "refs": []},
+    #     {"data": encode_bytes_to_base64_str("Welt".encode(ENCODING_FUNCTION)),  
+    #     "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
+    #     "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)), 
+    #     "refs": []},
+    #     {"data": {
+    #         "order": [
+    #             {"id": 0, "type": BUCKET_ID_TYPE_NO_REF},
+    #             {"id": 1, "type": BUCKET_ID_TYPE_NO_REF}], 
+    #         "name": encode_bytes_to_base64_str("Hallo Welt".encode(ENCODING_FUNCTION))},
+    #     "schema": DEFAULT_MOLECULAR_BUCKET_SCHEMA,
+    #     "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)),  "refs": []}]
+    
     contents = [
-        {"data": encode_bytes_to_base64_str("Hallo".encode(ENCODING_FUNCTION)),  
-        "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
-        "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)), 
-        "refs": []},
-        {"data": encode_bytes_to_base64_str("Welt".encode(ENCODING_FUNCTION)),  
-        "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
-        "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)), 
-        "refs": []},
-        {"data": {
-            "order": [
-                {"id": 0, "type": BUCKET_ID_TYPE_NO_REF},
-                {"id": 1, "type": BUCKET_ID_TYPE_NO_REF}], 
-            "name": encode_bytes_to_base64_str("Hallo Welt".encode(ENCODING_FUNCTION))},
-        "schema": DEFAULT_MOLECULAR_BUCKET_SCHEMA,
-        "parent_id": branch_id, "signature": encode_bytes_to_base64_str(bytes(1)),  "refs": []}]
+        {
+            "data": "Hallo",  
+            "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
+            "parent_id": encode_bytes_to_base64_str(bytes(0)), 
+            "signature": encode_bytes_to_base64_str(bytes(1)), 
+            "refs": []
+        },
+        {
+            "data": "Welt",  
+            "schema": DEFAULT_ATOMIC_BUCKET_SCHEMA, 
+            "parent_id": encode_bytes_to_base64_str(bytes(0)), 
+            "signature": encode_bytes_to_base64_str(bytes(1)), 
+            "refs": []
+        },
+        {
+            "data": {
+                "order": [
+                    {"id": 0, "type": BUCKET_ID_TYPE_NO_REF},
+                    {"id": 1, "type": BUCKET_ID_TYPE_NO_REF}], 
+                "name": "Hallo Welt"},
+            "schema": DEFAULT_MOLECULAR_BUCKET_SCHEMA,
+            "parent_id": encode_bytes_to_base64_str(bytes(0)), 
+            "signature": encode_bytes_to_base64_str(bytes(1)), 
+            "refs": []
+        }]
 
     public_key = encode_bytes_to_base64_str(bytes(1))
     proof = encode_bytes_to_base64_str(bytes(1))
