@@ -30,3 +30,54 @@ curl -X POST http://localhost:3356/create_genesis_branch \
 -H "Content-Type: application/json" \
 -d '{"branch_type": 1, "signature": "V2VsdA==", "accept_conflicts": false, "msg": "V2VsdA=="}'
 ```
+
+### TODO
+
+- Add some integration tests of the routes. 
+- Add getters and setters (createbranch, branches, submit, fetcharticlebyname, fetcharticlebyid etc. ) 
+
+
+```
+curl -X POST http://localhost:3356/submit_content_to_twig \
+-H "Content-Type: application/json" \
+-d '{
+  "jsonrpc": "2.0",
+  "method": "submit_content_to_twig",
+  "params": [
+    "AVESAnwJ",
+    [
+      {
+        "data": "V2VsdA==",
+        "schema": 1,  
+        "parent_id": "V2VsdA==", 
+        "signature": "V2VsdA==",
+        "refs": []
+      },
+      {
+        "data": "V2VsdA==",
+        "schema": 1,  
+        "parent_id": "V2VsdA==", 
+        "signature": "V2VsdA==",
+        "refs": []
+      },
+      {
+        "data": {
+          "order": [
+            {"id": 0, "type": 0}, 
+            {"id": 1, "type": 0}   
+          ],
+          "name": "V2VsdGEgV2VsdA==" 
+        },
+        "schema": 2, 
+        "parent_id": "V2VsdA==", 
+        "signature": "V2VsdA==",
+        "refs": []
+      }
+    ],
+    "V2VsdA==",
+    "V2VsdA==", 
+    "Test submit message"
+  ],
+  "id": 1
+}'
+```

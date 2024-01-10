@@ -8,3 +8,4 @@ py-multihash==0.2.3
 py-multicodec==0.2.1
 typing_extensions==4.7.0
 json-rpc==1.15.0
+jsonschema==3.2.0
