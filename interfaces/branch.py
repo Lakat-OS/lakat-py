@@ -1,14 +1,16 @@
 class BRANCH :
 
-    def __init__(self, id, parent_id, ns, stable_head, creation_ts, config, name_resolution, sprouts, sprout_selection, signature) :
+    def __init__(self, id, parent_id, ns, name, stable_head, creation_ts, config, name_resolution, interaction, sprouts, sprout_selection, signature) :
         self.id = id
         self.ns = ns
+        self.name = name
         self.parent_id = parent_id
         self.stable_head = stable_head
         self.config = config
         self.sprouts = sprouts
         self.sprout_selection = sprout_selection
         self.name_resolution = name_resolution
+        self.interaction = interaction
         self.signature = signature
         self.creation_ts = creation_ts
 

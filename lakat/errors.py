@@ -53,3 +53,10 @@ ERR_N_HASH_1 = Exception("ERR_N_HASH_1: Branch_ids need to be supplied!")
 # Type Errors
 ERR_N_ENC_1 = Exception("ERR_N_ENC_1: Unsupported encoding type")
 ERR_T_ENC_1 = TypeError("ERR_T_ENC_2: encoding_type must be of type str")
+
+
+################################################################
+### TRIE ERRORS ################################################
+################################################################
+
+ERR_N_TRIE_1 = lambda code : Exception(f'ERR_N_TRIE_1: Error getting value from trie. Error code: {code}.')

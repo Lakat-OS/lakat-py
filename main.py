@@ -2,9 +2,11 @@ from werkzeug.wrappers import Request, Response
 from werkzeug.serving import run_simple
 import lakat.branch.functions as lakat_branch_functions
 from lakat.branch.schema import create_genesis_branch_call, create_genesis_branch_response
-import lakat.storage as lakat_storage
+import lakat.storage.local_storage as lakat_storage
 import lakat.submit.functions as lakat_submit_functions
 import lakat.submit.schema as lakat_submit_schema
+import lakat.storage.getters_schema as lakat_getters_schema
+import lakat.storage.getters as lakat_getters
 
 from config.encode_cfg import ENCODING_FUNCTION
 from config.rpc_cfg import RPC_PORT
@@ -38,6 +40,18 @@ def submit_content_to_twig(branch_id: str, contents: any, public_key: str, proof
         call_schema=lakat_submit_schema.submit_content_for_twig_call,
         response_schema=lakat_submit_schema.submit_content_for_twig_response,
         kwargs=kwargs)
+
+@dispatcher.add_method
+def get_branch_name_from_branch_id(branch_id: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id)
+    # return call
+    return wrap_rpc_call(
+        function=lakat_getters.get_branch_name_from_branch_id,
+        call_schema=lakat_getters_schema.get_branch_name_from_branch_id, ## TODO: get rid of the response schema
+        response_schema=lakat_getters_schema.get_branch_name_from_branch_id["response"],
+        kwargs=kwargs)
+
 
 
 @dispatcher.add_method
