@@ -19,9 +19,9 @@ import math
 from jsonrpc import JSONRPCResponseManager, dispatcher
 
 @dispatcher.add_method
-def create_genesis_branch(branch_type: int, signature: str, accept_conflicts: bool, msg: str):
+def create_genesis_branch(branch_type: int, name: str, signature: str, accept_conflicts: bool, msg: str):
     # convert arguments to keyword dictionary
-    kwargs = dict(branch_type=branch_type, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
+    kwargs = dict(branch_type=branch_type, name=name, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
     # return call
     return wrap_rpc_call(
         function=lakat_branch_functions.create_genesis_branch,
