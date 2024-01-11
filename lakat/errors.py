@@ -32,6 +32,7 @@ ERR_S_BCKT_1 = lambda msg: Exception("ERR_S_BCKT_1: Invalid bucket schema: {}".f
 
 # Not found errors
 ERR_N_TCS_1 = Exception("ERR_N_TCS_1: Branch not found")
+ERR_N_TCS_2 = lambda content_index : Exception(f"ERR_N_TCS_2: Parent bucket of {content_index}'s submitted content not found in db.")
 
 
 ################################################################

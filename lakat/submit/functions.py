@@ -16,9 +16,9 @@ from lakat.timestamp import getTimestamp
 from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
 from lakat.storage.local_storage import (commit_to_db, get_from_db, stage_many_to_db, stage_to_db)
-from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
+from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes, get_name_trie, get_data_trie, get_interaction_trie)
 from config.encode_cfg import ENCODING_FUNCTION
-from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1)
+from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1, ERR_N_TCS_2)
 
 
 
@@ -84,12 +84,19 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     for content_index, content in enumerate(contents):
         if content["schema"] != DEFAULT_ATOMIC_BUCKET_SCHEMA:
             continue 
-        content_dict = dict(data = content["data"], signature= content["signature"], schema_id=content["schema"], parent_bucket=content["parent_id"], refs=content["refs"], public_key=public_key)
+        root_bucket_id, is_genesis, is_invalid_parent = get_root(
+            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"])
+        if is_invalid_parent:
+            ERR_N_TCS_2(content_index)
+        
+        content_dict = dict(data = content["data"], signature= content["signature"], schema_id=content["schema"], parent_bucket=content["parent_id"], root_bucket=root_bucket_id, refs=content["refs"], public_key=public_key)
         bucket_id, bucket_data = prepare_bucket(content_dict=content_dict, namespace=ATOMIC_BUCKET_NS)
         # add bucket id to the mapping for the molecular bucket
         index_to_bucket_id[content_index] = bucket_id
         # store in data trie
-        data_trie_root, data_trie_content = stage_data_trie(branch_id, branch_dict["ns"], bucket_id, bucket_data, inplace=False)
+        if is_genesis:
+            root_bucket_id = bucket_id
+        data_trie_root, data_trie_content = stage_data_trie(branch_id, branch_dict["ns"], root_bucket_id, bucket_id, inplace=False)
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
         stage_many_to_db(data_trie_content["db"])
@@ -97,19 +104,29 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         submit_trace_dict["changesTrace"].append(bucket_id)
         submit_trace_dict["dataTrie"].extend([key for key,val in data_trie_content["db"]])
 
+
     # Create molecular bucket
     for content_index, content in enumerate(contents):
         if content["schema"] != DEFAULT_MOLECULAR_BUCKET_SCHEMA:
             continue
+        # create the correctly formatted molecular data.
         molecular_data = get_bucket_ids_from_order(order=content["data"]["order"], index_to_bucket_id=index_to_bucket_id)
-        content_dict = dict(data = molecular_data, signature= content["signature"], schema_id=content["schema"], parent_bucket=content["parent_id"], refs=content["refs"], public_key=public_key)
+        
+        root_bucket_id, is_genesis, is_invalid_parent = get_root(
+            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"])
+        if is_invalid_parent:
+            ERR_N_TCS_2(content_index)
+
+        content_dict = dict(data = molecular_data, signature= content["signature"], schema_id=content["schema"], parent_bucket=content["parent_id"], root_bucket=root_bucket_id, refs=content["refs"], public_key=public_key)
         bucket_id, bucket_data = prepare_bucket(content_dict=content_dict, namespace=MOLECULAR_BUCKET_NS)
         # store in data trie
+        if is_genesis:
+            root_bucket_id = bucket_id
         data_trie_root, data_trie_content = stage_data_trie(
             branch_id=branch_id, 
             branch_suffix=branch_dict["ns"], 
-            key=bucket_id, 
-            value=bucket_data, 
+            key=root_bucket_id, 
+            value=bucket_id, 
             inplace=False)
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
@@ -159,6 +176,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # update branch params
     branch_params.update(dict(stable_head=submit_cid))
 
+
     # CREATE BRANCH OBJECT
     branch = BRANCH(**branch_params)
     # serialize config and add to db and trie backlog
@@ -190,3 +208,56 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     commit_to_db()
 
     return branch_head_id
+
+
+
+# def get_root_bucket_id(parent_bucket_id):
+#         if content["parent_id"]:
+#             parent_bucket_serialized = get_from_db(content["parent_id"])
+#             if not parent_bucket_serialized:
+#                 raise ERR_N_TCS_2(content_index)
+#             return 
+        
+#     return root_bucket_id
+
+# what is the root bucket. If there is no parent bucket, then root bucket is empty and the in the data trie there is a map from the bucket id to itself. If there is invalid parent bucket, then the call reverts. If there is a parent bucket, then one checks if it has a root bucket. If not, it is a root and the new bucket will have it as a root bucket and the data trie has a map from the root to the newly created bucket id. If it has a root, then one first checks what the trie entry. if the trie entry is the parent, then the root of the new bucket will be that root and in the data trie a map will be written from the root to the newly created bucket. If the trie entry is not the parent, then the root of the bucket will be the parent and a map will be written from that parent to the newly created bucket.
+
+
+def get_root(parent_bucket, branch_id, branch_suffix):
+    """
+    Find the root bucket based on the parent bucket.
+    """
+
+    is_genesis = False
+    is_invalid_parent = False
+    if not parent_bucket:
+        is_genesis = True
+        return bytes(0), is_genesis, is_invalid_parent
+    
+    # Placeholder for checking if parent bucket is invalid
+    parent_bucket_serialized = get_from_db(parent_bucket)
+    if not parent_bucket_serialized:
+        is_invalid_parent = True
+        is_genesis = False
+        return bytes(0), is_genesis, is_invalid_parent
+
+    # Placeholder for checking if parent bucket has a root bucket
+    parent_bucket_data = deserialize_from_key(parent_bucket, parent_bucket_serialized)
+    root_bucket_id = parent_bucket_data["root_bucket"]
+    if root_bucket_id:
+        # get the head from the trie
+        bucket_head_id = get_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, key=root_bucket_id)
+        # check if bucket_head_id is the parent
+        if parent_bucket==bucket_head_id:
+            is_invalid_parent = False
+            is_genesis = False
+            return root_bucket_id, is_genesis, is_invalid_parent
+        else:
+            is_invalid_parent = False
+            is_genesis = False
+            return parent_bucket, is_genesis, is_invalid_parent
+    else:
+        # the parent bucket is the root
+        is_invalid_parent = False
+        is_genesis = False
+        return parent_bucket, is_genesis, is_invalid_parent
