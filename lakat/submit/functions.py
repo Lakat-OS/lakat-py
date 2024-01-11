@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from lakat.bucket.functions import prepare_bucket, get_bucket_ids_from_order
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
@@ -28,7 +30,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     ## CHECK PROOF
 
 
-    submit_trace_dict = dict(
+    submit_trace_dict = dict(    
         config=b"",
         newBranchHead=b"",
         changesTrace=[],
@@ -39,6 +41,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         dataTrie=[],
         reviewsTrace=[],
         socialTrace=[],
+        socialRoot=b"",
         sprouts=[],
         sproutSelectionTrace=[])
 
@@ -60,9 +63,10 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     branch_dict = deserialize_from_key(branch_id, branch_serialized)
 
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
-    branch_params = dict(parent_id=branch_dict["parent_id"], creation_ts=creation_ts, signature=branch_dict["signature"])
+    branch_params_for_head = dict(parent_id=branch_dict["parent_id"], creation_ts=creation_ts, signature=branch_dict["signature"])
+    branch_params = deepcopy(branch_params_for_head)
     # create branch id
-    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=branch_dict["parent_id"], crop=suffix_crop)
+    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params_for_head, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=branch_dict["parent_id"], crop=suffix_crop)
     # create namespace and add branch id and namespace to branch params and update branch config, too
     branch_params.update(dict(id=branch_id, ns=branch_dict["ns"], config=branch_dict["config"]))
     # add to db backlog
@@ -70,6 +74,9 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # add to submit_trace_backlog
     submit_trace_dict["newBranchHead"] = branch_head_id
     # TODO: DANGER: The attacker could overwrite the branch head with a different branch data (but same creation time and signature). A nonce could be used to prevent this. But we dont keep account data in the db.
+
+    ## ADD THE BRANCH NAME TO THE BRANCH PARAMS
+    branch_params.update(dict(name=branch_dict["name"]))
 
     # CREATE BUCKETS
     index_to_bucket_id = dict()
@@ -124,6 +131,10 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
             # add trie to db backlog
             stage_many_to_db(name_res_content["db"])
 
+    # UPDATE INTERACTION TRIE
+    branch_params.update(dict(interaction_root=branch_dict["interaction_root"]))
+    # TODO: Integrate also social interactions, then update the social root, too, also in the trace
+
     # UPDATE SPROUTS
     branch_params.update(dict(sprouts=branch_dict["sprouts"], sprout_selection=branch_dict["sprout_selection"]))
 
@@ -167,6 +178,12 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         staged_db=data_trie_content["db"],
         staged_cache=data_trie_content["cache"],
         **trie_commit_default_params)
+    # commit_interaction_trie_changes(branch_id=branch_id,
+    #     staged_root=branch_dict["interaction_root"],
+    #     staged_db=[],
+    #     staged_cache=dict(),
+    #     **trie_commit_default_params)
+
 
     ## COMMIT ALL DATABASE COMMITS TO DB
     commit_to_db()

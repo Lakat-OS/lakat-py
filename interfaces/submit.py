@@ -7,7 +7,7 @@ class SUBMIT:
 
 
 class SUBMIT_TRACE:
-    def __init__(self, config, newBranchHead, changesTrace, pullRequests, nameResolution, nameResolutionRoot, nameTrie, dataTrie, reviewsTrace, socialTrace, sprouts, sproutSelectionTrace):
+    def __init__(self, config, newBranchHead, changesTrace, pullRequests, nameResolution, nameResolutionRoot, nameTrie, dataTrie, reviewsTrace, socialTrace, socialRoot, sprouts, sproutSelectionTrace):
         self.config=config
         self.newBranchHead=newBranchHead
         self.changesTrace=changesTrace
@@ -18,5 +18,6 @@ class SUBMIT_TRACE:
         self.dataTrie=dataTrie
         self.reviewsTrace=reviewsTrace
         self.socialTrace=socialTrace
+        self.socialRoot=socialRoot
         self.sprouts=sprouts
         self.sproutSelectionTrace=sproutSelectionTrace

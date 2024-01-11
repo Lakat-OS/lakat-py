@@ -27,7 +27,7 @@ from lakat.storage import (
     
 
 
-def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: bool, msg: bytes):
+def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accept_conflicts: bool, msg: bytes):
 
     ## CHECK INPUT TYPES
     check_inputs("create_genesis_branch", 
@@ -53,6 +53,7 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
         dataTrie=[],
         reviewsTrace=[],
         socialTrace=[],
+        socialRoot=b"",
         sprouts=[],
         sproutSelectionTrace=[])
 
@@ -76,11 +77,13 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     # add to submit_trace_backlog
     submit_trace_dict["newBranchHead"] = branch_head_id
 
-
     # create namespace and add branch id and namespace to branch params
     # scrambled_id = scramble_id(branch_id)
     branch_suffix = make_suffix_from_branch_ids(branch_id_1=branch_id, branch_id_2=parent_id, crop=suffix_crop)
     branch_params.update(dict(id=branch_id, ns=branch_suffix))
+
+    ## CREATE BRANCH NAME
+    branch_params.update(dict(name=name))
 
     # CREATE BRANCH CONFIG
     config = CONFIG(
@@ -108,17 +111,29 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     # update branch params
     branch_params.update(dict(sprouts=sprouts, sprout_selection=sprout_selection))
 
+
     # CREATE NAME RESOLUTION ENTRIES
     # Name Resolution MerkleTrie
-    create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix)
+    create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
     name_res_root, name_res_content = stage_name_trie_root(branch_id=branch_id, inplace=False)
     # add to db backlog
     stage_many_to_db(entries=name_res_content["db"])
-
     # add to submit_trace_backlog
     submit_trace_dict["nameResolutionRoot"] = name_res_root
     # update branch params
     branch_params.update(dict(name_resolution=name_res_root))
+
+
+    # CREATE SOCIAL INTERACTIONS ENTRIES
+    create_interaction_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
+    social_root, social_content = stage_interaction_trie_root(branch_id=branch_id, inplace=False)
+    # add to db backlog
+    stage_many_to_db(entries=social_content["db"])
+    # add to submit_trace_backlog
+    submit_trace_dict["socialRoot"] = social_root
+    # update branch params
+    branch_params.update(dict(interaction=social_root))
+
 
     # CREATE SUBMIT TRACE
     submit_trace = SUBMIT_TRACE(**submit_trace_dict)
@@ -131,7 +146,7 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
     # CREATE DATA TRIE AND POPULATE
     # storage.data_tries[branch_id] = MerkleTrie(db=storage.db_interface, branch_suffix=branch_suffix, namespace=DATA_TRIE_NS)
     # data_trie_root, data_trie_content = storage.data_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
-    create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix)
+    create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
     data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, inplace=False)
     # add to db backlog
     stage_many_to_db(entries=data_trie_content["db"])
@@ -167,6 +182,11 @@ def create_genesis_branch(branch_type: int, signature: bytes, accept_conflicts: 
         staged_root=data_trie_root, 
         staged_db=data_trie_content["db"],
         staged_cache=data_trie_content["cache"],
+        **trie_commit_default_params)
+    commit_interaction_trie_changes(branch_id=branch_id,
+        staged_root=social_root,
+        staged_db=social_content["db"],
+        staged_cache=social_content["cache"],
         **trie_commit_default_params)
     
     ## COMMIT ALL DATABASE COMMITS TO DB
