@@ -1,4 +1,4 @@
-import lakat.storage as lakat_storage
+import lakat.storage.local_storage as lakat_storage
 from utils.encode.hashing import deserialize_from_key
 
 
@@ -18,6 +18,16 @@ def get_branch_head_data_from_branch_id(branch_id: bytes) -> dict:
     ## get the branch head
     branch_head_id = get_branch_head_id_from_branch_id(branch_id=branch_id)
     return get_branch_data_from_branch_state_id(branch_state_id=branch_head_id)
+
+def get_branch_name_from_branch_state_id(branch_state_id: bytes) -> str:
+    ## get the branch head
+    branch_data = get_branch_data_from_branch_state_id(branch_state_id=branch_state_id)
+    return branch_data["name"]
+
+def get_branch_name_from_branch_id(branch_id: bytes) -> str:
+    ## get the branch head
+    branch_head_id = get_branch_head_id_from_branch_id(branch_id=branch_id)
+    return get_branch_name_from_branch_state_id(branch_state_id=branch_head_id)
 
 def get_branch_config_from_branch_state_id(branch_state_id: bytes) -> dict:
     ## get the branch head

@@ -16,14 +16,13 @@ from db.namespaces import (BRANCH_NS, BRANCH_HEAD_NS, DATA_TRIE_NS, NAME_RESOLUT
 from lakat.timestamp import getTimestamp
 # from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
-from lakat.storage import (
-    create_data_trie, 
-    create_interaction_trie, 
-    create_name_trie,
-    stage_to_db, stage_many_to_db, commit_to_db,
+from lakat.storage.local_storage import (stage_to_db, stage_many_to_db, commit_to_db)
+from lakat.storage.trie_storage import (
+    create_data_trie, create_interaction_trie, create_name_trie,
     stage_data_trie, stage_interaction_trie, stage_name_trie,
     stage_data_trie_root, stage_interaction_trie_root, stage_name_trie_root,
     commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
+
     
 
 

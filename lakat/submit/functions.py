@@ -15,7 +15,8 @@ from config.branch_cfg import PROPER_BRANCH_TYPE_ID
 from lakat.timestamp import getTimestamp
 from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
-from lakat.storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_to_db, get_from_db, stage_many_to_db, stage_to_db, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
+from lakat.storage.local_storage import (commit_to_db, get_from_db, stage_many_to_db, stage_to_db)
+from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
 from config.encode_cfg import ENCODING_FUNCTION
 from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1)
 
@@ -132,7 +133,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
             stage_many_to_db(name_res_content["db"])
 
     # UPDATE INTERACTION TRIE
-    branch_params.update(dict(interaction_root=branch_dict["interaction_root"]))
+    branch_params.update(dict(interaction=branch_dict["interaction"]))
     # TODO: Integrate also social interactions, then update the social root, too, also in the trace
 
     # UPDATE SPROUTS
