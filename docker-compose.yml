@@ -6,6 +6,9 @@ services:
       - "3355:3355"
     volumes:
       - ./docker_db:/usr/src/app/mockdb
+    networks:
+      - default
+      - lakat-backend
 
   flask-service:
     build: ./http-server
@@ -13,3 +16,7 @@ services:
       - "3356:3000"
     depends_on:
       - rpc-server
+
+networks:
+  lakat-backend:
+    name: lakat-backend
