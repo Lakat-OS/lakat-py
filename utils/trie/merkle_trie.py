@@ -18,6 +18,7 @@ class MerkleTrie:
 
     def set_root(self, root_id=bytes(0), codec=0x0):
         """ Set the root of the trie to an empty root. Only used at initialization."""
+        print('root_id', root_id, "namespace", self.__namespace)
         if root_id == bytes(0):
             _, staged = self.stage_root(codec=codec, inplace=True)
             # commit the staged root (and sets the root)
@@ -33,7 +34,7 @@ class MerkleTrie:
             self.root = root_id
             # create db_entries
             _, current_codec, _ = parse_cid(root_id)
-            serialized = serialize(node.__dict__, codec=current_codec)
+            serialized = serialize(node, codec=current_codec)
             db_entries = [(root_id, serialized)]
             return db_entries
 
