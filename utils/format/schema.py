@@ -3,7 +3,7 @@ from typing import List, Mapping
 from config.encode_cfg import ENCODING_FUNCTION
 from utils.encode.bytes import decode_base64_str_to_bytes, encode_bytes_to_base64_str
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
-from utils.encode.language import encode_string
+from utils.encode.language import encode_string_standard, decode_bytes
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
@@ -35,14 +35,14 @@ def check_argument(arg, schema):
 #         # For all other cases, return the data as-is
 #         return data
 
-def convert_bytes_based_on_schema(schema, data, conversion: callable, error_messages=""):
+def convert_bytes_based_on_schema(schema, data, conversion: callable, string_codec: callable, error_messages=""):
     try:
         # Base case: if the data matches a base64-encoded byte string schema
         if schema.get('type') == 'string':
             if schema.get('format') == 'byte':
                 return conversion(data), False, error_messages
             elif schema.get('varint_encoded') == 'true':
-                return encode_string(data, ENCODING_FUNCTION), False, error_messages
+                return string_codec(data), False, error_messages
             else:
                 # TODO: What to do in this case
                 return conversion(data), False, error_messages
@@ -57,6 +57,7 @@ def convert_bytes_based_on_schema(schema, data, conversion: callable, error_mess
                         schema['properties'][key], 
                         value, 
                         conversion, 
+                        string_codec,
                         error_messages)
                     new_object[key] = result
                     error_messages = new_error_messages if is_erroneous else error_messages
@@ -72,6 +73,7 @@ def convert_bytes_based_on_schema(schema, data, conversion: callable, error_mess
                     schema['items'], 
                     item, 
                     conversion,
+                    string_codec,
                     error_messages)
                 new_array.append(result)
                 error_messages = new_error_messages if is_erroneous else error_messages
@@ -84,6 +86,7 @@ def convert_bytes_based_on_schema(schema, data, conversion: callable, error_mess
                     sub_schema, 
                     data, 
                     conversion,
+                    string_codec,
                     error_messages)
                 if not is_erroneous:
                     return result, False, new_error_messages
@@ -99,13 +102,13 @@ def convert_bytes_based_on_schema(schema, data, conversion: callable, error_mess
 
     
 def convert_to_bytes_based_on_schema(schema, data):
-    result, is_erroneous, new_error_messages =  convert_bytes_based_on_schema(schema=schema, data=data, conversion=decode_base64_str_to_bytes)
+    result, is_erroneous, new_error_messages =  convert_bytes_based_on_schema(schema=schema, data=data, conversion=decode_base64_str_to_bytes, string_codec=encode_string_standard)
     if is_erroneous:
         raise ERR_S_BCKT_1(new_error_messages)
     return result
 
 def convert_from_bytes_based_on_schema(schema, data):
-    result, is_erroneous, new_error_messages =  convert_bytes_based_on_schema(schema=schema, data=data, conversion=encode_bytes_to_base64_str)
+    result, is_erroneous, new_error_messages =  convert_bytes_based_on_schema(schema=schema, data=data, conversion=encode_bytes_to_base64_str, string_codec=decode_bytes)
     if is_erroneous:
         raise ERR_S_BCKT_1(new_error_messages)
     return result

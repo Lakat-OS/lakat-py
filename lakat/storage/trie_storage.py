@@ -4,7 +4,7 @@ from config.encode_cfg import DEFAULT_CODEC
 from typing import List, Tuple
 from setup import storage
 from lakat.errors import ERR_N_TRIE_1
-from lakat.storage.branch_getters import (
+from lakat.storage.getters import (
     get_name_resolution_id_from_branch_id,
     get_data_trie_id_from_branch_id,
     get_interaction_id_from_branch_id)

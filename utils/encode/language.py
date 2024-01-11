@@ -1,5 +1,6 @@
 import varint
 from utils.encode.hashing import varint_decode
+from config.encode_cfg import ENCODING_FUNCTION
 
 # Decoding type mapping
 LANGUAGE_DECODING_TYPES = {
@@ -22,6 +23,10 @@ LANGUAGE_ENCODING_TYPES = {
     'windows-1252': 6,
     'gb18030': 7
 }
+
+def encode_string_standard(s):
+    return encode_string(s, ENCODING_FUNCTION)
+
 
 def encode_string(s, encoding_type='utf-8'):
     """
