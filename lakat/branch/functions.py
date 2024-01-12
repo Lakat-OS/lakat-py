@@ -1,3 +1,4 @@
+import random
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.config import CONFIG
 from interfaces.branch import BRANCH
@@ -65,6 +66,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     ## DEFINE TIMESTAMP
     creation_ts = getTimestamp()
 
+    ## CREATE A RANDOM TRIE TOKEN 
+    trie_token = random.randint(1, 2**32-1)
 
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
     branch_params = dict(parent_id=parent_id, creation_ts=creation_ts, signature=signature)
@@ -113,10 +116,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
 
     # CREATE NAME RESOLUTION ENTRIES
     # Name Resolution MerkleTrie
-    create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
-    name_res_root, name_res_content = stage_name_trie_root(branch_id=branch_id, inplace=False)
-    # add to db backlog
-    stage_many_to_db(entries=name_res_content["db"])
+    create_name_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
+    name_res_root, _ = stage_name_trie_root(branch_id=branch_id, token=trie_token)
     # add to submit_trace_backlog
     submit_trace_dict["nameResolutionRoot"] = name_res_root
     # update branch params
@@ -124,10 +125,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
 
 
     # CREATE SOCIAL INTERACTIONS ENTRIES
-    create_interaction_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
-    social_root, social_content = stage_interaction_trie_root(branch_id=branch_id, inplace=False)
-    # add to db backlog
-    stage_many_to_db(entries=social_content["db"])
+    create_interaction_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
+    social_root, _ = stage_interaction_trie_root(branch_id=branch_id, token=trie_token)
     # add to submit_trace_backlog
     submit_trace_dict["socialRoot"] = social_root
     # update branch params
@@ -145,10 +144,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     # CREATE DATA TRIE AND POPULATE
     # storage.data_tries[branch_id] = MerkleTrie(db=storage.db_interface, branch_suffix=branch_suffix, namespace=DATA_TRIE_NS)
     # data_trie_root, data_trie_content = storage.data_tries[branch_id].stage_root(codec=DEFAULT_CODEC, inplace=False)
-    create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, fetch_root=False)
-    data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, inplace=False)
-    # add to db backlog
-    stage_many_to_db(entries=data_trie_content["db"])
+    create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
+    data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, token=trie_token)
 
 
     # CREATE SUBMIT
@@ -171,24 +168,13 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
 
 
     ## COMMIT ALL TRIE CHANGES
-    trie_commit_default_params = dict(inplace=False, commit_to_db=False)
-    commit_name_trie_changes(branch_id=branch_id, 
-        staged_root=name_res_root, 
-        staged_db=name_res_content["db"], 
-        staged_cache=name_res_content["cache"], 
-        **trie_commit_default_params)
-    commit_data_trie_changes(branch_id=branch_id,
-        staged_root=data_trie_root, 
-        staged_db=data_trie_content["db"],
-        staged_cache=data_trie_content["cache"],
-        **trie_commit_default_params)
-    commit_interaction_trie_changes(branch_id=branch_id,
-        staged_root=social_root,
-        staged_db=social_content["db"],
-        staged_cache=social_content["cache"],
-        **trie_commit_default_params)
-    
+    name_res_content= commit_name_trie_changes(branch_id=branch_id, token=trie_token)
+    data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
+    social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
     ## COMMIT ALL DATABASE COMMITS TO DB
     commit_to_db()
+    stage_many_to_db(name_res_content)
+    stage_many_to_db(data_trie_content)
+    stage_many_to_db(social_trie_content)
     
     return branch_id

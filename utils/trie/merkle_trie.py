@@ -1,4 +1,5 @@
 import binascii
+from copy import deepcopy
 from utils.encode.hashing import parse_cid, make_lakat_cid_and_serialize_from_suffix, deserialize, hexlify, deserialize_from_key, serialize
 from typing import List, Tuple
 from config.encode_cfg import DEFAULT_CODEC
@@ -12,42 +13,37 @@ class MerkleTrie:
         self.root = bytes(0)
         self.__namespace = namespace
         self.branch_suffix = branch_suffix
-        self.staged_root = bytes(0)
-        self.staged_cache = {}
-        self.staged_db = []
+        ## TODO: make those dictionaries whose keys are tokens
+        self.staged_root = dict() # dict of bytes
+        self.staged_cache = dict() # dict of dicts
+        self.staged_db = dict() # dict of lists
 
-    def set_root(self, root_id=bytes(0), codec=0x0):
+
+    def set_root(self, token, root_id):
         """ Set the root of the trie to an empty root. Only used at initialization."""
-        print('root_id', root_id, "namespace", self.__namespace)
-        if root_id == bytes(0):
-            _, staged = self.stage_root(codec=codec, inplace=True)
-            # commit the staged root (and sets the root)
-            self.commit()
-            db_entries = staged["db"]
-            return db_entries
-        else:
-            # get root_id from db
-            node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, put_to_cache_if_not_already=True)
-            if code!=200:
-                raise Exception("Root node not found in db.")
-            # set root
-            self.root = root_id
-            # create db_entries
-            _, current_codec, _ = parse_cid(root_id)
-            serialized = serialize(node, codec=current_codec)
-            db_entries = [(root_id, serialized)]
-            return db_entries
+        # get root_id from db
+        node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, put_to_cache_if_not_already=True)
+        if code!=200:
+            raise Exception("Root node not found in db.")
+        if not in_cache:
+            self.cache[root_id] = node
+        # set root
+        self.staged_root[token] = root_id
 
-    def stage_root(self, codec=0x0, inplace=True):
+
+    def stage_root(self, token, codec=0x0):
         """ Stages an empty root for the trie. Only used at initialization."""
         codec == (DEFAULT_CODEC if codec==0x0 else codec)
         node = dict(value=None, children={}, path=[])
         key, value = self.get_trie_key_value_from_node(node, codec=codec)
         staged = dict(db=[(key, value)], cache={key: node})
-        if inplace:
-            self.staged_root = key
-            self.staged_cache = staged['cache']
-            self.staged_db = staged['db']
+        self.staged_root[token] = key
+        if token not in self.staged_cache:
+            self.staged_cache[token] = dict()
+        self.staged_cache[token].update(staged['cache'])
+        if token not in self.staged_db:
+            self.staged_db[token] = list()
+        self.staged_db[token].extend(staged['db'])
         return key, staged
 
     def get_trie_key_value_from_node(self, node: any, codec: int) -> Tuple[bytes, bytes]:
@@ -55,33 +51,27 @@ class MerkleTrie:
                 node, codec=codec, namespace=self.__namespace, suffix=self.branch_suffix)
 
 
-    def put(self, key: bytes, value, codec: int = 0x0) -> List[Tuple[bytes, bytes]]:
-        _, staged = self.stage(key=key, value=value, codec=codec, inplace=True)
-        self.commit()
-        return staged["db"]
+    def put(self, key: bytes, value, token: int, codec: int = 0x0) -> List[Tuple[bytes, bytes]]:
+        self.stage(key=key, value=value, token=token, codec=codec)
+        return self.commit(token)
     
 
-    def commit(self, staged_root=bytes(0), staged_db=[], staged_cache=dict(), inplace=True, commit_to_db=True):
+    def commit(self, token: int) -> List[Tuple[bytes, bytes]]:
         """ Commits the staged changes to the trie. Optionally puts the staged changes into the database."""
-        if inplace:
-            if commit_to_db:
-                for cid, serialized in self.staged_db:
-                    self.db.put(cid, serialized)
-            self.cache.update(self.staged_cache)
-            self.root = self.staged_root
-            self.staged_root = bytes(0)
-            self.staged_cache = {}
-            self.staged_db = []
-        else:
-            if commit_to_db:
-                for cid, serialized in staged_db:
-                    self.db.put(cid, serialized)
-            self.cache.update(staged_cache)
-            self.root = staged_root
+        staged_db = deepcopy(self.staged_db[token])
+        self.cache.update(self.staged_cache[token])
+        self.root = self.staged_root[token]
+        # TODO: The ground truth could also change for another token meanwhile. What to do then?
+        del self.staged_root[token]
+        del self.staged_cache[token]
+        del self.staged_db[token]
+        # for cid, serialized in self.staged_db:
+        #     self.db.put(cid, serialized)
+        return staged_db
 
 
  
-    def stage(self, key: bytes, value, codec: int = 0x0, inplace=True) -> Tuple[bytes, dict]:
+    def stage(self, key: bytes, value, token: int, codec: int = 0x0) -> Tuple[bytes, dict]:
         # get codec from cid
         if codec == 0x0:
             _, current_codec, _ = parse_cid(key)
@@ -90,15 +80,19 @@ class MerkleTrie:
 
         staged = dict(db=list(), cache=dict())
         hex_path = hexlify(key)
-        staged_root, staged = self._stage_recursive(current_cid=self.root, path=hex_path, value=value, codec=current_codec, staged=staged)
-        if inplace:
-            self.staged_root = staged_root
-            self.staged_cache = staged['cache']
-            self.staged_db = staged['db']
+        staged_root, staged = self._stage_recursive(current_cid=self.root, path=hex_path, value=value, token=token, codec=current_codec, staged=staged)
+        
+        self.staged_root[token] = staged_root
+        if token not in self.staged_cache:
+            self.staged_cache[token] = dict()
+        self.staged_cache[token].update(staged['cache'])
+        if token not in self.staged_db:
+            self.staged_db[token] = list()
+        self.staged_db[token].extend(staged['db'])
         return staged_root, staged
 
 
-    def _stage_recursive(self, current_cid:bytes, path: List[int], value, codec: int, staged: dict, depth: int = 0) -> Tuple[bytes, dict]:
+    def _stage_recursive(self, current_cid:bytes, path: List[int], value, token: int, codec: int, staged: dict, depth: int = 0) -> Tuple[bytes, dict]:
         
         if depth == len(path):
             # End of Leaf
@@ -116,17 +110,23 @@ class MerkleTrie:
             # current node is in cache
             node = self.cache[current_cid]
         else:
-            # try to get from db
-            serialized = self.db.get(current_cid)
-            if serialized is None:
-                # current node doesnt exist yet or cannot be retrieved from db
-                node = dict(value=None, children={}, path=path[:depth])
+            # its not in the cache. Maybe in the staged cache?
+            if self.staged_cache.get(token):
+                if current_cid in self.staged_cache.get(token):
+                    node = self.staged_cache[token][current_cid]
+            
             else:
-                # current node is in db but not in cache
-                node = deserialize_from_key(key=current_cid, value=serialized)
-                # put current node in cache ( even though it will be overwritten later )
-                self.cache[current_cid] = node
-                # TODO: Maybe doesnt need to go into cache.
+                # try to get from db
+                serialized = self.db.get(current_cid)
+                if serialized is None:
+                    # current node doesnt exist yet or cannot be retrieved from db
+                    node = dict(value=None, children={}, path=path[:depth])
+                else:
+                    # current node is in db but not in cache
+                    node = deserialize_from_key(key=current_cid, value=serialized)
+                    # put current node in cache ( even though it will be overwritten later )
+                    self.staged_cache[token][current_cid] = node
+                    # TODO: Maybe doesnt need to go into cache.
 
         # Get the next node
         char = path[depth]
@@ -136,7 +136,7 @@ class MerkleTrie:
             child_cid = node["children"][char]
 
         # Recurse to the next level
-        updated_child_cid, staged = self._stage_recursive(current_cid=child_cid, path=path, value=value, codec=codec, staged=staged, depth=depth + 1)
+        updated_child_cid, staged = self._stage_recursive(current_cid=child_cid, path=path, value=value, token=token, codec=codec, staged=staged, depth=depth + 1)
 
         # Update this node
         node["children"][char] = updated_child_cid
@@ -146,19 +146,22 @@ class MerkleTrie:
         return updated_cid, staged
     
 
-    def get(self, key: bytes) -> Tuple[any, bool]:
+    def get(self, key: bytes, token:int = 0) -> Tuple[any, bool]:
         hex_path = hexlify(key)
-        return self._get_recursive(current_cid=self.root, path=hex_path)
+        return self._get_recursive(current_cid=self.root, path=hex_path, token=token)
 
-    def _get_recursive(self, current_cid: bytes, path: List[int], depth: int = 0) -> Tuple[any, bool]:
+    def _get_recursive(self, current_cid: bytes, path: List[int], token:int = 0, depth: int = 0) -> Tuple[any, bool]:
         if current_cid == bytes(0):
             return None, 400  # Node does not exist
 
         # Retrieve node from cache or database
-        node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=current_cid, put_to_cache_if_not_already=True)
+        node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=current_cid, token=token, put_to_cache_if_not_already=True)
 
         if code!=200:
             return None, code
+        
+        if not in_cache:
+            self.cache[current_cid] = node
 
         if depth == len(path):
             return node.get('value'), 200  # Return the value at the leaf
@@ -171,10 +174,13 @@ class MerkleTrie:
         return self._get_recursive(current_cid=child_cid, path=path, depth=depth + 1)
     
 
-    def retrieve_node_from_cache_or_db(self, cid: bytes, put_to_cache_if_not_already:bool=False) -> Tuple[any, bytes, bool, bool]:
+    def retrieve_node_from_cache_or_db(self, cid: bytes, token: int, put_to_cache_if_not_already:bool=False) -> Tuple[any, bytes, bool, bool]:
         node_in_cache = False
         if cid in self.cache:
             node = self.cache[cid]
+            node_in_cache = True
+        elif cid in self.staged_cache[token] and token!=0:
+            node = self.staged_cache[token][cid]
             node_in_cache = True
         else:
             serialized = self.db.get(cid)
@@ -183,7 +189,10 @@ class MerkleTrie:
             node = deserialize_from_key(key=cid, value=serialized)
             # otherwise set into cached storage
             if put_to_cache_if_not_already:
-                self.cache[cid] = node
+                if token==0:
+                    self.cache[cid] = node
+                else:
+                    self.staged_cache[token][cid] = node
                 node_in_cache = True
         return node, 200, node_in_cache
             
