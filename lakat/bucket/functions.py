@@ -13,6 +13,7 @@ def prepare_bucket(content_dict: Mapping[str, any], namespace: int) -> bytes:
         signature = content_dict["signature"],
         public_key = content_dict["public_key"],
         parent_bucket = content_dict["parent_bucket"],
+        root_bucket = content_dict["root_bucket"],
         data = content_dict["data"],
         refs = content_dict["refs"],
         timestamp = getTimestamp()
