@@ -1,5 +1,5 @@
 from copy import deepcopy
-
+import random
 from lakat.bucket.functions import prepare_bucket, get_bucket_ids_from_order
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.branch import BRANCH
@@ -55,6 +55,9 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     ## DEFINE TIMESTAMP
     creation_ts = getTimestamp()
 
+    ## CREATE A RANDOM TRIE TOKEN 
+    trie_token = random.randint(1, 2**32-1)
+
     ## FETCH BRANCH
     branch_head_id = get_from_db(branch_id)
     branch_serialized = get_from_db(branch_head_id)
@@ -89,13 +92,12 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         # add bucket id to the mapping for the molecular bucket
         index_to_bucket_id[content_index] = bucket_id
         # store in data trie
-        data_trie_root, data_trie_content = stage_data_trie(branch_id, branch_dict["ns"], bucket_id, bucket_data, inplace=False)
+        data_trie_root, data_trie_content = stage_data_trie(branch_id, branch_dict["ns"], bucket_id, bucket_data, token=trie_token)
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
-        stage_many_to_db(data_trie_content["db"])
         # add to submit_trace_backlog
         submit_trace_dict["changesTrace"].append(bucket_id)
-        submit_trace_dict["dataTrie"].extend([key for key,val in data_trie_content["db"]])
+        submit_trace_dict["dataTrie"].extend([key for key,_ in data_trie_content["db"]])
 
     # Create molecular bucket
     for content_index, content in enumerate(contents):
@@ -109,26 +111,25 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
             branch_id=branch_id, 
             branch_suffix=branch_dict["ns"], 
             key=bucket_id, 
-            value=bucket_data, 
-            inplace=False)
+            value=bucket_data,
+            token=trie_token)
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
-        stage_many_to_db(data_trie_content["db"])
         # add to submit_trace_backlog
         submit_trace_dict["changesTrace"].append(bucket_id)
-        submit_trace_dict["dataTrie"].extend([key for key,val in data_trie_content["db"]])
+        submit_trace_dict["dataTrie"].extend([key for key,_ in data_trie_content["db"]])
 
         # check if there is a name resolution entry
         name_res_content = {"db": list(), "cache": dict()}
         if content["data"].get("name"):
             # add to the name resolution trie 
-            name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, inplace=False)
+            name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
             # update the name_resolution_pointer in the branch data
             branch_params.update(dict(name_resolution=name_res_root))
             # add to submit_trace_backlog
             submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
             # add to submit_trace name_trie list
-            submit_trace_dict["nameTrie"].extend([key for key,val in name_res_content["db"]])
+            submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
             # add trie to db backlog
             stage_many_to_db(name_res_content["db"])
 
@@ -167,26 +168,15 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # add to db backlog
     stage_to_db(branch_head_id, branch_serialized)
 
-    ## COMMIT ALL TRIE CHANGES
-    trie_commit_default_params = dict(inplace=False, commit_to_db=False)
-    commit_name_trie_changes(branch_id=branch_id, 
-        staged_root=name_res_root, 
-        staged_db=name_res_content["db"], 
-        staged_cache=name_res_content["cache"], 
-        **trie_commit_default_params)
-    commit_data_trie_changes(branch_id=branch_id,
-        staged_root=data_trie_root, 
-        staged_db=data_trie_content["db"],
-        staged_cache=data_trie_content["cache"],
-        **trie_commit_default_params)
-    # commit_interaction_trie_changes(branch_id=branch_id,
-    #     staged_root=branch_dict["interaction_root"],
-    #     staged_db=[],
-    #     staged_cache=dict(),
-    #     **trie_commit_default_params)
-
-
+   ## COMMIT ALL TRIE CHANGES
+    name_res_content= commit_name_trie_changes(branch_id=branch_id, token=trie_token)
+    data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
+    # social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
+    
     ## COMMIT ALL DATABASE COMMITS TO DB
     commit_to_db()
+    stage_many_to_db(name_res_content)
+    stage_many_to_db(data_trie_content)
+    # stage_many_to_db(social_trie_content)
 
     return branch_head_id
