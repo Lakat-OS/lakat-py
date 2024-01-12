@@ -12,6 +12,7 @@ class MerkleTrie:
         self.root = bytes(0)
         self.__namespace = namespace
         self.branch_suffix = branch_suffix
+        ## TODO: make those dictionaries whose keys are tokens
         self.staged_root = bytes(0)
         self.staged_cache = {}
         self.staged_db = []
@@ -30,6 +31,8 @@ class MerkleTrie:
             node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, put_to_cache_if_not_already=True)
             if code!=200:
                 raise Exception("Root node not found in db.")
+            if not in_cache:
+                self.cache[root_id] = node
             # set root
             self.root = root_id
             # create db_entries
@@ -159,6 +162,9 @@ class MerkleTrie:
 
         if code!=200:
             return None, code
+        
+        if not in_cache:
+            self.cache[current_cid] = node
 
         if depth == len(path):
             return node.get('value'), 200  # Return the value at the leaf
