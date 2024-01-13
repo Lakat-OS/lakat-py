@@ -46,6 +46,7 @@ def stage_name_trie(branch_id: bytes, branch_suffix: bytes, key: bytes, value: b
     if branch_id not in storage.name_tries:
         create_name_trie(branch_id, branch_suffix, token=token, fetch_root=True)
     codec==(DEFAULT_CODEC if codec==0x0 else codec)
+    # TODO: CHECK WHAT HAPPENS IF I Set codec=(DEFAULT_CODEC if codec==0x0 else codec) here
     return storage.name_tries[branch_id].stage(key=key, value=value, token=token, codec=codec)
 
 # @ensure_data_trie
