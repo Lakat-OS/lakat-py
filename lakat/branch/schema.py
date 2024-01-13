@@ -1,4 +1,4 @@
-create_genesis_branch_call = {
+create_genesis_branch_schema = {
     "type": "object",
     "properties": {
         "name": {"type": "string", "varint_encoded": "true"},
@@ -7,8 +7,8 @@ create_genesis_branch_call = {
         "accept_conflicts": {"type": "boolean"},
         "msg": {"type": "string", "varint_encoded": "true"}
     },
-    "required": ["branch_type", "name", "signature", "accept_conflicts", "msg"]
+    "required": ["branch_type", "name", "signature", "accept_conflicts", "msg"],
+    "response": {"type": "string", "format": "byte"}  # base64-encoded bytes
 }
 
-create_genesis_branch_response = {"type": "string", "format": "byte"}  # base64-encoded bytes
 

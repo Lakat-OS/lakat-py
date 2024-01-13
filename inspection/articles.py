@@ -36,3 +36,13 @@ def _get_data_from_bucket(bucket_id: bytes) -> bytes:
 def get_article_from_article_name(branch_id: bytes, name: bytes) -> bytes:
     article_id = _get_article_id_from_article_name(branch_id=branch_id, name=name)
     return _get_data_from_bucket(bucket_id=article_id)
+
+get_article_from_article_name_schema ={
+  "type": "object",
+  "properties": {
+    "branch_id": {"type": "string", "format": "byte"},
+    "name": {"type": "string", "varint_encoded": "true"}
+  },
+  "required": ["branch_id", "name"],
+  "response": {"type": "string", "varint_encoded": "true"}
+}

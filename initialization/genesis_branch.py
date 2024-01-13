@@ -1,7 +1,5 @@
 import lakat.branch.functions as lakat_branch_functions
-import lakat.branch.schema as lakat_branch_schema
 import lakat.submit.functions as lakat_submit_functions
-import lakat.submit.schema as lakat_submit_schema
 import lakat.storage.local_storage as lakat_storage_functions
 from utils.format.schema import check_argument, convert_to_bytes_based_on_schema, convert_from_bytes_based_on_schema
 from config.branch_cfg import PROPER_BRANCH_TYPE_ID, TWIG_BRANCH_TYPE_ID
@@ -17,14 +15,15 @@ def test_create_genesis_branch(debug=True):
     msg = 'Genesis Submit'
     name = 'Genesis Branch'
     create_branch_kwargs = dict(branch_type=TWIG_BRANCH_TYPE_ID, name=name, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
-    check_argument(arg=create_branch_kwargs, schema=lakat_branch_schema.create_genesis_branch_call)
-    converted_kwargs = convert_to_bytes_based_on_schema(schema=lakat_branch_schema.create_genesis_branch_call, data=create_branch_kwargs)
+    check_argument(arg=create_branch_kwargs, schema=lakat_branch_functions.create_genesis_branch_schema)
+    converted_kwargs = convert_to_bytes_based_on_schema(schema=lakat_branch_functions.create_genesis_branch_schema, data=create_branch_kwargs)
     response = lakat_branch_functions.create_genesis_branch(**converted_kwargs)
-    decoded_response = convert_from_bytes_based_on_schema(schema=lakat_branch_schema.create_genesis_branch_response, data=response)
+    decoded_response = convert_from_bytes_based_on_schema(schema=lakat_branch_functions.create_genesis_branch_schema["response"], data=response)
     response = dict(branch_id=response, decoded_branch_id=decoded_response)
     if debug: 
         print('new branch id:', response)
     return response
+
 
 def test_create_genesis_branch_with_initial_submit(debug=True):
 
@@ -59,10 +58,10 @@ def test_create_genesis_branch_with_initial_submit(debug=True):
     proof = encode_bytes_to_base64_str(bytes(1))
     submit_msg = "Initial Submit"
     submit_kwargs = dict(branch_id=genesis_branch_response["decoded_branch_id"], contents=contents, public_key=public_key, proof=proof, msg=submit_msg)
-    check_argument(arg=submit_kwargs, schema=lakat_submit_schema.submit_content_for_twig_call)
-    converted_submit_kwargs = convert_to_bytes_based_on_schema(schema=lakat_submit_schema.submit_content_for_twig_call, data=submit_kwargs)
+    check_argument(arg=submit_kwargs, schema=lakat_submit_functions.submit_content_for_twig_schema)
+    converted_submit_kwargs = convert_to_bytes_based_on_schema(schema=lakat_submit_functions.submit_content_for_twig_schema, data=submit_kwargs)
     submit_response = lakat_submit_functions.submit_content_for_twig(**converted_submit_kwargs)
-    decoded_submit_response = convert_from_bytes_based_on_schema(schema=lakat_submit_schema.submit_content_for_twig_response, data=submit_response)
+    decoded_submit_response = convert_from_bytes_based_on_schema(schema=lakat_submit_functions.submit_content_for_twig_schema["response"], data=submit_response)
     response = dict(branch_head_id=submit_response, decoded_branch_head_id=decoded_submit_response)
     if debug:
         print("decoded new head state id:", response)
