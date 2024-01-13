@@ -65,3 +65,31 @@ bucket_contents_schema = {
         ]
     }
 }
+
+default_atomic_bucket_data_schema = {"type": "string", "varint_encoded": "true"}
+default_molecular_bucket_data_schema = {
+          "type": "array",
+          "items": {"type": "string", "format": "byte"}
+        }
+
+bucket_schema = {
+  "type": "object",
+  "properties": {
+    "schema_id": {"type": "integer"},
+    "signature": {"type": "string", "format": "byte"},
+    "public_key": {"type": "string", "format": "byte"},
+    "parent_bucket": {"type": "string", "format": "byte"},
+    "root_bucket": {"type": "string", "format": "byte"},
+    "data": {
+      "oneOf": [
+        default_atomic_bucket_data_schema,
+        default_molecular_bucket_data_schema]
+    },
+    "refs": {
+      "type": "array",
+      "items": {"type": "string", "format": "byte"}
+    },
+    "timestamp": {"type": "integer"}
+  },
+  "required": ["schema_id", "signature", "public_key", "parent_bucket", "root_bucket", "data", "refs", "timestamp"]
+}

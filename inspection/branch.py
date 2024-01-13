@@ -1,9 +1,6 @@
 import lakat.storage.local_storage as lakat_storage
 from utils.encode.hashing import deserialize_from_key
-from schema.bucket import (
-    bucket_contents_schema, 
-    atomic_bucket_content_schema,
-    molecular_bucket_content_schema)
+from schema.bucket import bucket_schema
 
 #### BRANCH_DATE GETTERS ####
 
@@ -189,8 +186,7 @@ submit_trace_schema = {
             "type": "array",  ## TODO: add the bucket resolution option
             "items": {
                 "oneOf": [
-                    atomic_bucket_content_schema,
-                    molecular_bucket_content_schema,
+                    bucket_schema,
                     {"type": "string", "format": "byte"}
                 ]
             }

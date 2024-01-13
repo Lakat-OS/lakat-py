@@ -3,7 +3,6 @@ from werkzeug.serving import run_simple
 import lakat.branch.functions as lakat_branch_functions
 import lakat.storage.local_storage as lakat_storage
 import lakat.submit.functions as lakat_submit_functions
-import lakat.submit.schema as lakat_submit_schema
 import inspection.articles as inspection_articles
 import inspection.branch as inspection_branch
 
