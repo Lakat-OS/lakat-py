@@ -65,17 +65,3 @@ bucket_contents_schema = {
         ]
     }
 }
-
-submit_content_for_twig_call = {
-    "type": "object",
-    "properties": {
-        "branch_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
-        "contents": bucket_contents_schema,
-        "public_key": {"type": "string", "format": "byte"},  # base64-encoded bytes
-        "proof": {"type": "string", "format": "byte"},  # base64-encoded bytes
-        "msg": {"type": "string", "varint_encoded": "true"}
-    },
-    "required": ["branch_id", "contents", "public_key", "proof", "msg"]
-}
-
-submit_content_for_twig_response = {"type": "string", "format": "byte"}  # base64-encoded bytes
