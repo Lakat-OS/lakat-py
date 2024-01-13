@@ -19,7 +19,7 @@ from lakat.storage.local_storage import (commit_to_db, get_from_db, stage_many_t
 from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes, get_name_trie, get_data_trie, get_interaction_trie)
 from config.encode_cfg import ENCODING_FUNCTION
 from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1, ERR_N_TCS_2)
-
+from schema.bucket import bucket_contents_schema
 
 
 def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, proof: bytes, msg: bytes):
@@ -184,21 +184,23 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # add to db backlog
     stage_to_db(branch_head_id, branch_serialized)
 
-   ## COMMIT ALL TRIE CHANGES
-    name_res_content= commit_name_trie_changes(branch_id=branch_id, token=trie_token)
+    ## COMMIT ALL TRIE CHANGES
+    name_res_content = commit_name_trie_changes(branch_id=branch_id, token=trie_token)
     data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
     # social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
     
-    ## COMMIT ALL DATABASE COMMITS TO DB
-    commit_to_db()
+    ## STAGE ALL TRIE DATABASE COMMITS TO DB
     stage_many_to_db(name_res_content)
     stage_many_to_db(data_trie_content)
+    # stage_many_to_db(social_trie_content)
+
+    commit_to_db()
     # stage_many_to_db(social_trie_content)
 
     return branch_head_id
 
 
-
+# TODO: MOVE This function to bucket files
 def get_root(parent_bucket, branch_id, branch_suffix):
     """
     Find the root bucket based on the parent bucket.
@@ -237,3 +239,18 @@ def get_root(parent_bucket, branch_id, branch_suffix):
         is_invalid_parent = False
         is_genesis = False
         return parent_bucket, is_genesis, is_invalid_parent
+
+
+
+submit_content_for_twig_schema = {
+    "type": "object",
+    "properties": {
+        "branch_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "contents": bucket_contents_schema,
+        "public_key": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "proof": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "msg": {"type": "string", "varint_encoded": "true"}
+    },
+    "required": ["branch_id", "contents", "public_key", "proof", "msg"],
+    "response": {"type": "string", "format": "byte"}
+}

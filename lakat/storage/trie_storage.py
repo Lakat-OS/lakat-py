@@ -4,7 +4,7 @@ from config.encode_cfg import DEFAULT_CODEC
 from typing import List, Tuple
 from setup import storage
 from lakat.errors import ERR_N_TRIE_1
-from lakat.storage.getters import (
+from lakat.storage.trie_getters import (
     get_name_resolution_id_from_branch_id,
     get_data_trie_id_from_branch_id,
     get_interaction_id_from_branch_id)
@@ -91,7 +91,6 @@ def get_interaction_trie(branch_id: bytes, branch_suffix: bytes, key: bytes, tok
 
 
 def stage_name_trie_root(branch_id: bytes, token: int):
-    # print('Default codec is', DEFAULT_CODEC)
     return storage.name_tries[branch_id].stage_root(codec=DEFAULT_CODEC, token=token)
 
 def stage_data_trie_root(branch_id: bytes, token: int):
@@ -112,3 +111,17 @@ def commit_data_trie_changes(branch_id: bytes, token: int):
 
 def commit_interaction_trie_changes(branch_id: bytes, token: int):
     return storage.interaction_tries[branch_id].commit(token=token)
+
+
+def clear_staged_name_trie_changes(branch_id: bytes, token: int):
+    return storage.name_tries[branch_id].clear_staged(token=token)
+
+def clear_staged_data_trie_changes(branch_id: bytes, token: int):
+    return storage.data_tries[branch_id].clear_staged(token=token)
+
+def clear_staged_interaction_trie_changes(branch_id: bytes, token: int):
+    return storage.interaction_tries[branch_id].clear_staged(token=token)
+
+def get_current_name_staged_caches(branch_id: bytes) -> List[int]:
+    return list(storage.name_tries[branch_id].staged_cache.keys())
+    

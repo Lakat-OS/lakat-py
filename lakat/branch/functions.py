@@ -13,7 +13,7 @@ from utils.encode.hashing import (
 from utils.encode.language import encode_string
 from config.env import DEV_ENVIRONMENT
 from config.encode_cfg import DEFAULT_SUFFIX_CROP, DEV_SUFFIX_CROP, DEFAULT_CODEC
-from db.namespaces import (BRANCH_NS, BRANCH_HEAD_NS, DATA_TRIE_NS, NAME_RESOLUTION_TRIE_NS, CONFIG_NS, SUBMIT_NS, SUBMIT_TRACE_NS, TOKEN_NS, NAME_RESOLUTION_NS)
+from db.namespaces import (BRANCH_NS, BRANCH_HEAD_NS, DATA_TRIE_NS, NAME_RESOLUTION_TRIE_NS, CONFIG_NS, SUBMIT_NS, SUBMIT_TRACE_NS, TOKEN_NS)
 from lakat.timestamp import getTimestamp
 # from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
@@ -172,9 +172,25 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
     social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
     ## COMMIT ALL DATABASE COMMITS TO DB
-    commit_to_db()
     stage_many_to_db(name_res_content)
     stage_many_to_db(data_trie_content)
     stage_many_to_db(social_trie_content)
+
+    commit_to_db()
     
     return branch_id
+
+
+create_genesis_branch_schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "varint_encoded": "true"},
+        "branch_type": {"type": "integer"},
+        "signature": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "accept_conflicts": {"type": "boolean"},
+        "msg": {"type": "string", "varint_encoded": "true"}
+    },
+    "required": ["branch_type", "name", "signature", "accept_conflicts", "msg"],
+    "response": {"type": "string", "format": "byte"}  # base64-encoded bytes
+}
+

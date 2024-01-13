@@ -1,12 +1,10 @@
 from werkzeug.wrappers import Request, Response
 from werkzeug.serving import run_simple
 import lakat.branch.functions as lakat_branch_functions
-from lakat.branch.schema import create_genesis_branch_call, create_genesis_branch_response
 import lakat.storage.local_storage as lakat_storage
 import lakat.submit.functions as lakat_submit_functions
-import lakat.submit.schema as lakat_submit_schema
-import lakat.storage.getters_schema as lakat_getters_schema
-import lakat.storage.getters as lakat_getters
+import inspection.articles as inspection_articles
+import inspection.branch as inspection_branch
 
 from config.encode_cfg import ENCODING_FUNCTION
 from config.rpc_cfg import RPC_PORT
@@ -25,8 +23,7 @@ def create_genesis_branch(branch_type: int, name: str, signature: str, accept_co
     # return call
     return wrap_rpc_call(
         function=lakat_branch_functions.create_genesis_branch,
-        call_schema=create_genesis_branch_call,
-        response_schema=create_genesis_branch_response,
+        schema=lakat_branch_functions.create_genesis_branch_schema,
         kwargs=kwargs)
 
 
@@ -37,9 +34,9 @@ def submit_content_to_twig(branch_id: str, contents: any, public_key: str, proof
     # return call
     return wrap_rpc_call(
         function=lakat_submit_functions.submit_content_for_twig,
-        call_schema=lakat_submit_schema.submit_content_for_twig_call,
-        response_schema=lakat_submit_schema.submit_content_for_twig_response,
+        schema=lakat_submit_functions.submit_content_for_twig_schema,
         kwargs=kwargs)
+
 
 @dispatcher.add_method
 def get_branch_name_from_branch_id(branch_id: str):
@@ -47,11 +44,31 @@ def get_branch_name_from_branch_id(branch_id: str):
     kwargs = dict(branch_id=branch_id)
     # return call
     return wrap_rpc_call(
-        function=lakat_getters.get_branch_name_from_branch_id,
-        call_schema=lakat_getters_schema.get_branch_name_from_branch_id, ## TODO: get rid of the response schema
-        response_schema=lakat_getters_schema.get_branch_name_from_branch_id["response"],
+        function=inspection_branch.get_branch_name_from_branch_id,
+        schema=inspection_branch.get_branch_name_from_branch_id_schema,
         kwargs=kwargs)
 
+
+@dispatcher.add_method
+def get_branch_data_from_branch_id(branch_id: str, deserialize_buckets: bool):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, deserialize_buckets=deserialize_buckets)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_branch.get_branch_data_from_branch_id,
+        schema=inspection_branch.get_branch_data_from_branch_id_schema,
+        kwargs=kwargs)
+
+
+@dispatcher.add_method
+def get_article_from_article_name(branch_id: str, name: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, name=name)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_articles.get_article_from_article_name,
+        schema=inspection_articles.get_article_from_article_name_schema,
+        kwargs=kwargs)
 
 
 @dispatcher.add_method
