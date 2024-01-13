@@ -6,5 +6,5 @@ TRIE_INTERACTION_DUMP_TYPE = "interaction_dump"
 INTERACTION_TRIE_FOLDER = "interaction-trie"
 NAME_TRIE_FOLDER = "name-trie"
 DATA_TRIE_FOLDER = "data-trie"
-HASH_ENCODING_STYLE = "base58"
+HASH_ENCODING_STYLE = "base64"  ## "base58" is also good
 NUMBER_OF_SUFFIXLESS_NAMESPACES = 10

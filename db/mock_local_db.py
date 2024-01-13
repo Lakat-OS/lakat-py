@@ -74,16 +74,16 @@ class MOCK_DB(DB_BASE):
 
     def get_filename(self, filename: str):
         if self.__crop_filename_after == 0:
-            return filename
+            return filename.replace('/', '_')
         else:
-            return filename[:self.__crop_filename_after]
+            return filename[:self.__crop_filename_after].replace('/', '_')
+        
     
 
     def stage(self, key:bytes, value: bytes):
         staged, staged_indices = self._create_new_db_entries(key, value)
         self.staged.update(staged)
         self.staged_indices.extend(staged_indices)
-
     
     def stage_many(self, entries: List[Tuple[bytes, bytes]]):
         for key, value in entries:
@@ -92,7 +92,7 @@ class MOCK_DB(DB_BASE):
 
     def commit(self):
         ## first commit all the self.staged entries 
-        self._push_staged(self.staged, self.staged_indices)
+        self._push_staged(staged=self.staged, staged_indices=self.staged_indices)
         ## reset the staged entries
         self.staged = dict()
         self.staged_indices = list()
@@ -183,6 +183,7 @@ class MOCK_DB(DB_BASE):
             if namespace == ns:
                 file_path = os.path.join(self.db, folder, self.get_filename(encoded_key) + ".json")
                 is_trie_data = True
+                # print("mock storage namespace entry", file_path)
                 break
         if not is_trie_data:
             file_path = os.path.join(self.db, self.get_filename(encoded_key) + ".json")
@@ -190,8 +191,9 @@ class MOCK_DB(DB_BASE):
         request_type = 'update' if os.path.exists(file_path) else 'put'
 
         staged = {file_path: data}
-        staged_indices = list()
 
+        # get only those entry that are stored in the index (not to be cluttered with trie node content)
+        staged_indices = list()
         if not namespace in trie_folders:
             if suffix_length_length == 0:
                 peri = ""
@@ -199,11 +201,10 @@ class MOCK_DB(DB_BASE):
             else:
                 peri = key_encoder(branch_id)
                 core = key_encoder(parent_branch_id)
-
+            # get index entry
             new_index_entry = self.get_new_index_entry(request_type=request_type, namespace=namespace, alg_id=alg_id, codec_id=codec_id, digest=key_encoder(digest), core=core, peri=peri, file_path=file_path, key=repr(key))
-            
+            # append the staged indices
             staged_indices.append(new_index_entry)
-        
         return staged, staged_indices
     
 

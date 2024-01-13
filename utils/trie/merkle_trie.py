@@ -22,7 +22,7 @@ class MerkleTrie:
     def set_root(self, token, root_id):
         """ Set the root of the trie to an empty root. Only used at initialization."""
         # get root_id from db
-        node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, put_to_cache_if_not_already=True)
+        node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, token=token, put_to_cache_if_not_already=True)
         if code!=200:
             raise Exception("Root node not found in db.")
         if not in_cache:
@@ -39,9 +39,7 @@ class MerkleTrie:
         key, value = self.get_trie_key_value_from_node(node, codec=codec)
         staged = dict(db=[(key, value)], cache={key: node})
         self.staged_root[token] = key
-        if token not in self.staged_cache:
-            self.staged_cache[token] = dict()
-        self.staged_cache[token].update(staged['cache'])
+        self.store_in_temporary_cache(token=token, content_dict=staged['cache'])
         if token not in self.staged_db:
             self.staged_db[token] = list()
         self.staged_db[token].extend(staged['db'])
@@ -66,11 +64,15 @@ class MerkleTrie:
         self.clear_staged(token=token)
         return staged_db
     
+
     def clear_staged(self, token: int):
         """ Clears the staged changes to the trie. Optionally puts the staged changes into the database."""
-        del self.staged_root[token]
-        del self.staged_cache[token]
-        del self.staged_db[token]
+        if token in self.staged_root:
+            del self.staged_root[token]
+        if token in self.staged_cache:
+            del self.staged_cache[token]
+        if token in self.staged_db:
+            del self.staged_db[token]
         return True
 
 
@@ -87,9 +89,8 @@ class MerkleTrie:
         staged_root, staged = self._stage_recursive(current_cid=self.root, path=hex_path, value=value, token=token, codec=current_codec, staged=staged)
         
         self.staged_root[token] = staged_root
-        if token not in self.staged_cache:
-            self.staged_cache[token] = dict()
-        self.staged_cache[token].update(staged['cache'])
+        
+        self.store_in_temporary_cache(token=token, content_dict=staged['cache'])
         if token not in self.staged_db:
             self.staged_db[token] = list()
         self.staged_db[token].extend(staged['db'])
@@ -116,7 +117,7 @@ class MerkleTrie:
         else:
             # its not in the cache. Maybe in the staged cache?
             if self.staged_cache.get(token):
-                if current_cid in self.staged_cache.get(token):
+                if current_cid in self.staged_cache.get(token, {}):
                     node = self.staged_cache[token][current_cid]
             
             else:
@@ -129,7 +130,8 @@ class MerkleTrie:
                     # current node is in db but not in cache
                     node = deserialize_from_key(key=current_cid, value=serialized)
                     # put current node in cache ( even though it will be overwritten later )
-                    self.staged_cache[token][current_cid] = node
+                    self.store_in_temporary_cache(token=token, content_dict={current_cid: node})
+                    
                     # TODO: Maybe doesnt need to go into cache.
 
         # Get the next node
@@ -152,7 +154,8 @@ class MerkleTrie:
 
     def get(self, key: bytes, token:int = 0) -> Tuple[any, bool]:
         hex_path = hexlify(key)
-        return self._get_recursive(current_cid=self.root, path=hex_path, token=token)
+        current_cid = self.staged_root[token] if token in self.staged_root else self.root
+        return self._get_recursive(current_cid=current_cid, path=hex_path, token=token)
 
     def _get_recursive(self, current_cid: bytes, path: List[int], token:int = 0, depth: int = 0) -> Tuple[any, bool]:
         if current_cid == bytes(0):
@@ -183,7 +186,7 @@ class MerkleTrie:
         if cid in self.cache:
             node = self.cache[cid]
             node_in_cache = True
-        elif cid in self.staged_cache[token] and token!=0:
+        elif cid in self.staged_cache.get(token, {}) and token!=0:
             node = self.staged_cache[token][cid]
             node_in_cache = True
         else:
@@ -196,9 +199,15 @@ class MerkleTrie:
                 if token==0:
                     self.cache[cid] = node
                 else:
-                    self.staged_cache[token][cid] = node
+                    self.store_in_temporary_cache(token=token, content_dict={cid: node})
                 node_in_cache = True
         return node, 200, node_in_cache
+    
+
+    def store_in_temporary_cache(self, token: int, content_dict: dict):
+        if token not in self.staged_cache and token!=0:
+            self.staged_cache[token] = dict()
+        self.staged_cache[token].update(content_dict)
             
 
     def load_into_cache(self, current_cid: bytes, depth: int = 0, allow_overwrite: bool = False):

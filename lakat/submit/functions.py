@@ -184,15 +184,17 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # add to db backlog
     stage_to_db(branch_head_id, branch_serialized)
 
-   ## COMMIT ALL TRIE CHANGES
-    name_res_content= commit_name_trie_changes(branch_id=branch_id, token=trie_token)
+    ## COMMIT ALL TRIE CHANGES
+    name_res_content = commit_name_trie_changes(branch_id=branch_id, token=trie_token)
     data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
     # social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
     
-    ## COMMIT ALL DATABASE COMMITS TO DB
-    commit_to_db()
+    ## STAGE ALL TRIE DATABASE COMMITS TO DB
     stage_many_to_db(name_res_content)
     stage_many_to_db(data_trie_content)
+    # stage_many_to_db(social_trie_content)
+
+    commit_to_db()
     # stage_many_to_db(social_trie_content)
 
     return branch_head_id

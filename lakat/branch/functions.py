@@ -172,9 +172,10 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     data_trie_content = commit_data_trie_changes(branch_id=branch_id, token=trie_token)
     social_trie_content = commit_interaction_trie_changes(branch_id=branch_id, token=trie_token)
     ## COMMIT ALL DATABASE COMMITS TO DB
-    commit_to_db()
     stage_many_to_db(name_res_content)
     stage_many_to_db(data_trie_content)
     stage_many_to_db(social_trie_content)
+
+    commit_to_db()
     
     return branch_id

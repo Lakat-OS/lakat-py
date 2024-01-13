@@ -91,7 +91,6 @@ def get_interaction_trie(branch_id: bytes, branch_suffix: bytes, key: bytes, tok
 
 
 def stage_name_trie_root(branch_id: bytes, token: int):
-    # print('Default codec is', DEFAULT_CODEC)
     return storage.name_tries[branch_id].stage_root(codec=DEFAULT_CODEC, token=token)
 
 def stage_data_trie_root(branch_id: bytes, token: int):
@@ -122,3 +121,7 @@ def clear_staged_data_trie_changes(branch_id: bytes, token: int):
 
 def clear_staged_interaction_trie_changes(branch_id: bytes, token: int):
     return storage.interaction_tries[branch_id].clear_staged(token=token)
+
+def get_current_name_staged_caches(branch_id: bytes) -> List[int]:
+    return list(storage.name_tries[branch_id].staged_cache.keys())
+    
