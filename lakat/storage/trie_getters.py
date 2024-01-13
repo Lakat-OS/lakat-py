@@ -5,7 +5,7 @@ def _get_branch_data_from_branch_id(branch_id: bytes) -> bytes:
     ## get the branch head
     branch_state_id = lakat_storage.get_from_db(branch_id)
     serialized_branch_data = lakat_storage.get_from_db(branch_state_id)
-    branch_data = deserialize_from_key(key=branch_state_id, value=serialized_branch_data)
+    return deserialize_from_key(key=branch_state_id, value=serialized_branch_data)
 
 def get_name_resolution_id_from_branch_id(branch_id: bytes) -> bytes:
     return _get_branch_data_from_branch_id(branch_id)["name_resolution"]

@@ -1,6 +1,7 @@
 import varint
 from utils.encode.hashing import varint_decode
 from config.encode_cfg import ENCODING_FUNCTION
+from typing import List
 
 # Decoding type mapping
 LANGUAGE_DECODING_TYPES = {
@@ -38,7 +39,7 @@ def encode_string(s, encoding_type='utf-8'):
     """
 
     # Encode the string
-    encoded_str = s.encode(encoding_type)
+    encoded_str = s.encode(encoding=encoding_type)
 
     # Encode the encoding type and length as varints
     encoding_byte = varint.encode(LANGUAGE_ENCODING_TYPES.get(encoding_type, 1))  # Default to utf-8
@@ -65,3 +66,17 @@ def decode_bytes(encoded_bytes):
     # Extract and decode the string
     string_data = encoded_bytes[offset + length_offset:offset + length_offset + length]
     return string_data.decode(encoding_type)
+
+
+
+def join_encoded_bytes(encoded_bytes_array: List[bytes]):
+    """
+    Decodes two encoded strings, joins them, and then re-encodes the joined string in a common encoding.
+    """
+    # Decode both strings
+    joined_str = ""
+    for encoded_bytes in encoded_bytes_array:
+        joined_str += decode_bytes(encoded_bytes)
+
+    # Re-encode the joined string (here, using UTF-8 as the common encoding)
+    return encode_string_standard(joined_str)
