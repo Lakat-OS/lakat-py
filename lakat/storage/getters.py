@@ -1,13 +1,12 @@
 import lakat.storage.local_storage as lakat_storage
+import lakat.storage.trie_storage as lakat_trie_storage
 from utils.encode.hashing import deserialize_from_key
+import random
 
 
 def get_branch_head_id_from_branch_id(branch_id: bytes) -> bytes:
     ## get the branch head
     return lakat_storage.get_from_db(branch_id)
-
-
-## branch data ##
 
 def get_branch_data_from_branch_state_id(branch_state_id: bytes) -> dict:
     ## get the branch head
@@ -90,6 +89,15 @@ def get_data_trie_id_from_branch_id(branch_id: bytes) -> bytes:
     ## get the branch head
     branch_head_id = get_branch_head_id_from_branch_id(branch_id=branch_id)
     return get_data_trie_id_from_branch_state_id(branch_state_id=branch_head_id)
+
+def get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
+    ## get the branch using get_branch_head_data_from_branch_id
+    branch_head_data = get_branch_head_data_from_branch_id(branch_id=branch_id)
+    ## get the name resolution data from trie
+    temp_get_request_token = random.randint(1, 2**32-1)
+    name = lakat_trie_storage.get_name_trie(branch_id=branch_id, branch_suffix=branch_head_data["ns"], key=name, token=temp_get_request_token)
+    lakat_trie_storage.clear_staged_name_trie_changes(branch_id=branch_id, token=temp_get_request_token)
+    return name
 
 # def get_article_id_from_article_name(branch_id: bytes, name: str) -> bytes:
 #     ## get the branch using get_branch_head_data_from_branch_id

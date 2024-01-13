@@ -28,7 +28,8 @@ class MerkleTrie:
         if not in_cache:
             self.cache[root_id] = node
         # set root
-        self.staged_root[token] = root_id
+        if token != 0:
+            self.staged_root[token] = root_id
 
 
     def stage_root(self, token, codec=0x0):
@@ -62,12 +63,15 @@ class MerkleTrie:
         self.cache.update(self.staged_cache[token])
         self.root = self.staged_root[token]
         # TODO: The ground truth could also change for another token meanwhile. What to do then?
+        self.clear_staged(token=token)
+        return staged_db
+    
+    def clear_staged(self, token: int):
+        """ Clears the staged changes to the trie. Optionally puts the staged changes into the database."""
         del self.staged_root[token]
         del self.staged_cache[token]
         del self.staged_db[token]
-        # for cid, serialized in self.staged_db:
-        #     self.db.put(cid, serialized)
-        return staged_db
+        return True
 
 
  
