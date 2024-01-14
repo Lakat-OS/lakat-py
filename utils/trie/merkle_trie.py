@@ -57,9 +57,14 @@ class MerkleTrie:
 
     def commit(self, token: int) -> List[Tuple[bytes, bytes]]:
         """ Commits the staged changes to the trie. Optionally puts the staged changes into the database."""
-        staged_db = deepcopy(self.staged_db[token])
-        self.cache.update(self.staged_cache[token])
-        self.root = self.staged_root[token]
+        if token in self.staged_db:
+            staged_db = deepcopy(self.staged_db[token])
+        else: 
+            staged_db = list()
+        if token in self.staged_cache:
+            self.cache.update(self.staged_cache[token])
+        if token in self.staged_root:
+            self.root = self.staged_root[token]
         # TODO: The ground truth could also change for another token meanwhile. What to do then?
         self.clear_staged(token=token)
         return staged_db
@@ -160,7 +165,6 @@ class MerkleTrie:
     def _get_recursive(self, current_cid: bytes, path: List[int], token:int = 0, depth: int = 0) -> Tuple[any, bool]:
         if current_cid == bytes(0):
             return None, 400  # Node does not exist
-
         # Retrieve node from cache or database
         node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=current_cid, token=token, put_to_cache_if_not_already=True)
 
@@ -178,7 +182,7 @@ class MerkleTrie:
         if child_cid is None:
             return None, 500  # Child node does not exist
 
-        return self._get_recursive(current_cid=child_cid, path=path, depth=depth + 1)
+        return self._get_recursive(current_cid=child_cid, path=path, depth=depth + 1, token=token)
     
 
     def retrieve_node_from_cache_or_db(self, cid: bytes, token: int, put_to_cache_if_not_already:bool=False) -> Tuple[any, bytes, bool, bool]:

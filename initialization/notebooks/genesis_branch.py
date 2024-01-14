@@ -24,7 +24,6 @@ def test_create_genesis_branch(debug=True):
         print('new branch id:', response)
     return response
 
-
 def test_create_genesis_branch_with_initial_submit(debug=True):
 
     genesis_branch_response = test_create_genesis_branch(debug=debug)

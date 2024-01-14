@@ -61,6 +61,18 @@ def get_branch_data_from_branch_id(branch_id: str, deserialize_buckets: bool):
 
 
 @dispatcher.add_method
+def get_branch_data_from_branch_state_id(branch_state_id: str, deserialize_buckets: bool):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_state_id, deserialize_buckets=deserialize_buckets)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_branch.get_branch_data_from_branch_state_id,
+        schema=inspection_branch.get_branch_data_from_branch_state_id_schema,
+        kwargs=kwargs)
+
+
+
+@dispatcher.add_method
 def get_article_from_article_name(branch_id: str, name: str):
     # convert arguments to keyword dictionary
     kwargs = dict(branch_id=branch_id, name=name)

@@ -159,6 +159,14 @@ def get_branch_data_from_branch_id(
     )
 
 
+def get_branch_data_from_branch_state_id(
+    branch_state_id: bytes, deserialize_buckets: bool = True
+) -> bytes:
+    return _get_full_branch_info_from_branch_state_id(branch_state_id,
+        deserialize_buckets=deserialize_buckets,
+    )
+
+
 submit_object_schema = {
     "type": "object",
     "properties": {
@@ -176,8 +184,6 @@ branch_config_schema = {
     },
     "required": ["accept_conflicts", "branch_type"],
 }
-
-
 
 submit_trace_schema = {
     "type": "object",
@@ -204,8 +210,6 @@ submit_trace_schema = {
     },
     "required": ["new_buckets", "new_registered_names"],
 }
-
-
 
 get_branch_data_from_branch_id_response_schema = {
     "type": "object",
@@ -249,6 +253,19 @@ get_branch_data_from_branch_id_schema = {
     "deserialize_buckets": {"type": "boolean"}
   },
   "required": ["branch_id"],
+  "response": get_branch_data_from_branch_id_response_schema
+}
+
+get_branch_data_from_branch_state_id_schema = {
+  "type": "object",
+  "properties": {
+    "branch_state_id": {
+      "type": "string",
+      "format": "byte" 
+    },
+    "deserialize_buckets": {"type": "boolean"}
+  },
+  "required": ["branch_state_id"],
   "response": get_branch_data_from_branch_id_response_schema
 }
 
