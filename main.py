@@ -35,6 +35,7 @@ if WITH_INTIAL_ARTICLE_DEPLOYMENT:
         except Exception as e2:
             print("Article Deployment did not work because: ", str(e2))
 
+
 @dispatcher.add_method
 def create_genesis_branch(branch_type: int, name: str, signature: str, accept_conflicts: bool, msg: str):
     # convert arguments to keyword dictionary
@@ -89,8 +90,6 @@ def get_branch_data_from_branch_state_id(branch_state_id: str, deserialize_bucke
         schema=inspection_branch.get_branch_data_from_branch_state_id_schema,
         kwargs=kwargs)
 
-
-
 @dispatcher.add_method
 def get_article_from_article_name(branch_id: str, name: str):
     # convert arguments to keyword dictionary
@@ -100,6 +99,14 @@ def get_article_from_article_name(branch_id: str, name: str):
         function=inspection_articles.get_article_from_article_name,
         schema=inspection_articles.get_article_from_article_name_schema,
         kwargs=kwargs)
+
+
+@dispatcher.add_method
+def get_local_branches():
+    return wrap_rpc_call(
+        function=inspection_branch.get_local_branches,
+        schema=inspection_branch.get_local_branches_schema,
+        kwargs=dict())
 
 
 @dispatcher.add_method

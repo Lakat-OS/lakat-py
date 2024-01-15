@@ -1,4 +1,5 @@
 import lakat.storage.local_storage as lakat_storage
+import lakat.storage.branch_storage as lakat_local_branch_storage
 from utils.encode.hashing import deserialize_from_key
 from schema.bucket import bucket_schema
 
@@ -267,6 +268,27 @@ get_branch_data_from_branch_state_id_schema = {
   },
   "required": ["branch_state_id"],
   "response": get_branch_data_from_branch_id_response_schema
+}
+
+
+def get_local_branches():
+    """ " Get the local branches
+
+    Returns
+    -------
+    list
+        The local branches
+    """
+    return lakat_local_branch_storage.get_local_branches()
+
+get_local_branches_schema = {
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "response": {
+    "type": "array",
+    "items": {"type": "string", "varint_encoded": "true"}
+  }
 }
 
 

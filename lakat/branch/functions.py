@@ -23,6 +23,7 @@ from lakat.storage.trie_storage import (
     stage_data_trie, stage_interaction_trie, stage_name_trie,
     stage_data_trie_root, stage_interaction_trie_root, stage_name_trie_root,
     commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes)
+from lakat.storage.branch_storage import add_branch_to_local_storage
 
     
 
@@ -177,6 +178,9 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     stage_many_to_db(social_trie_content)
 
     commit_to_db()
+
+    ## SEt to local branch storage
+    add_branch_to_local_storage(branch_id)
     
     return branch_id
 
