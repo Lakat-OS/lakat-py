@@ -183,7 +183,6 @@ class MOCK_DB(DB_BASE):
             if namespace == ns:
                 file_path = os.path.join(self.db, folder, self.get_filename(encoded_key) + ".json")
                 is_trie_data = True
-                # print("mock storage namespace entry", file_path)
                 break
         if not is_trie_data:
             file_path = os.path.join(self.db, self.get_filename(encoded_key) + ".json")

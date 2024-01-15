@@ -4,18 +4,18 @@ services:
     build: .
     ports:
       - "3355:3355"
-    volumes:
-      - ./docker_db:/usr/src/app/mockdb
+    # volumes:
+    #   - ./docker_db:/usr/src/app/file_db
     networks:
       - default
       - lakat-backend
 
-  flask-service:
-    build: ./http-server
-    ports:
-      - "3356:3000"
-    depends_on:
-      - rpc-server
+  # flask-service:
+  #   build: ./http-server
+  #   ports:
+  #     - "3356:3000"
+  #   depends_on:
+  #     - rpc-server
 
 networks:
   lakat-backend:

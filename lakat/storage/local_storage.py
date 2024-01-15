@@ -12,6 +12,9 @@ def restart_db():
 def restart_db_with_name(name: str):
     return storage.db_interface.restart(name=name)
 
+def close_session():
+    return storage.db_interface.close()
+
 def stage_to_db(key: bytes, value: bytes):
     storage.db_interface.stage(key=key, value=value)
 
@@ -23,3 +26,5 @@ def commit_to_db():
 
 def get_from_db(key: bytes) -> bytes:
     return storage.db_interface.get(key)
+
+

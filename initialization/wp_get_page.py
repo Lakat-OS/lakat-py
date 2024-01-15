@@ -9,8 +9,11 @@ class WikipediaPage:
 
     def __init__(self, API_URL, scrape_directory="initialization"):
         self.API_URL = API_URL
-        self.__jsonIndent = 2
+        self._jsonIndent = 2
         self.scrape_directory = scrape_directory
+
+    def get_json_indent(self):
+        return self._jsonIndent
 
     def get_page_content(self, title):
         """Fetch the main content of a Wikipedia page."""
@@ -159,7 +162,7 @@ class WikipediaPage:
         }
 
         # Create directories if they don't exist
-        dir_path = f"./scrape/hist/{title}"
+        dir_path = f"./{self.scrape_directory}/hist/{title}"
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 

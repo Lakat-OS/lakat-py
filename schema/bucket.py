@@ -2,12 +2,12 @@ atomic_bucket_content_schema = {
     "type": "object",
     "properties": {
         "data": {"type": "string", "varint_encoded": "true"},
-        "schema": {"type": ["integer", "string"]},
-        "parent_id": {"type": "string", "format": "byte", "varint_encoded": "false"},
-        "signature": {"type": "string", "format": "byte", "varint_encoded": "false"},
+        "schema": {"type": "integer"},
+        "parent_id": {"type": "string", "format": "byte"},
+        "signature": {"type": "string", "format": "byte"},
         "refs": {
             "type": "array",
-            "items": {"type": "string", "format": "byte", "varint_encoded": "false"}
+            "items": {"type": "string", "format": "byte"}
         }
     },
     "required": ["data", "schema", "parent_id", "signature", "refs"]
@@ -28,14 +28,12 @@ molecular_bucket_content_schema = {
                             "id": {
                                 "oneOf": [
                                     {"type": "string", "format": "byte"},
-                                    {"type": "integer"}, 
-                                    {"type": "string"}
+                                    {"type": "integer"}
                                 ]
                             },
                             "type": {
                                 "oneOf": [
-                                    {"type": "integer"}, 
-                                    {"type": "string"}
+                                    {"type": "integer"}
                                 ]
                             }
                         },

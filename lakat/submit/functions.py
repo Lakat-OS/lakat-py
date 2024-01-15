@@ -20,6 +20,7 @@ from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_
 from config.encode_cfg import ENCODING_FUNCTION
 from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1, ERR_N_TCS_2)
 from schema.bucket import bucket_contents_schema
+import utils.encode.language as language_utils
 
 
 def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, proof: bytes, msg: bytes):
@@ -88,7 +89,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         if content["schema"] != DEFAULT_ATOMIC_BUCKET_SCHEMA:
             continue 
         root_bucket_id, is_genesis, is_invalid_parent = get_root(
-            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"])
+            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"], token=trie_token)
         if is_invalid_parent:
             ERR_N_TCS_2(content_index)
         
@@ -115,7 +116,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         molecular_data = get_bucket_ids_from_order(order=content["data"]["order"], index_to_bucket_id=index_to_bucket_id)
         
         root_bucket_id, is_genesis, is_invalid_parent = get_root(
-            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"])
+            parent_bucket=content["parent_id"], branch_id=branch_id, branch_suffix=branch_dict["ns"], token=trie_token)
         if is_invalid_parent:
             ERR_N_TCS_2(content_index)
 
@@ -138,14 +139,19 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
 
         # check if there is a name resolution entry
         if content["data"].get("name"):
-            # add to the name resolution trie 
-            name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
-            # update the name_resolution_pointer in the branch data
-            branch_params.update(dict(name_resolution=name_res_root))
-            # add to submit_trace_backlog
-            submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
-            # add to submit_trace name_trie list
-            submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
+            # TODO: Should think of a way to pass bytes(0) into this arg, so that this block will not be executed.
+            if not language_utils.decode_bytes(content["data"].get("name")):
+                branch_params.update(dict(name_resolution=branch_dict["name_resolution"]))
+                continue
+            else:
+                # add to the name resolution trie 
+                name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
+                # update the name_resolution_pointer in the branch data
+                branch_params.update(dict(name_resolution=name_res_root))
+                # add to submit_trace_backlog
+                submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
+                # add to submit_trace name_trie list
+                submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
 
 
     # UPDATE INTERACTION TRIE
@@ -201,7 +207,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
 
 
 # TODO: MOVE This function to bucket files
-def get_root(parent_bucket, branch_id, branch_suffix):
+def get_root(parent_bucket, branch_id, branch_suffix, token=0x0):
     """
     Find the root bucket based on the parent bucket.
     """
@@ -224,7 +230,7 @@ def get_root(parent_bucket, branch_id, branch_suffix):
     root_bucket_id = parent_bucket_data["root_bucket"]
     if root_bucket_id:
         # get the head from the trie
-        bucket_head_id = get_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, key=root_bucket_id)
+        bucket_head_id = get_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, key=root_bucket_id, token=token)
         # check if bucket_head_id is the parent
         if parent_bucket==bucket_head_id:
             is_invalid_parent = False
