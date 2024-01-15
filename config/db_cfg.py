@@ -1,4 +1,4 @@
-DB_NAME = "lakat_test_33"
+DB_NAME = "lakat_te"
 DEV_TRIE_SUFFIX = "_trie_"
 DB_FOLDER = "file_db"
 TRIE_TYPE = "trie"
