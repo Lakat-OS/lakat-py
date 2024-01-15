@@ -287,7 +287,7 @@ get_local_branches_schema = {
   "required": [],
   "response": {
     "type": "array",
-    "items": {"type": "string", "varint_encoded": "true"}
+    "items": {"type": "string", "format": "byte"}
   }
 }
 
