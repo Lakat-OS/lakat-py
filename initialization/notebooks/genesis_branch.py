@@ -6,22 +6,14 @@ from config.branch_cfg import PROPER_BRANCH_TYPE_ID, TWIG_BRANCH_TYPE_ID
 from utils.encode.bytes import encode_bytes_to_base64_str, decode_base64_str_to_bytes
 # from config.encode_cfg import ENCODING_FUNCTION
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA, BUCKET_ID_TYPE_NO_REF
+import initialization.base.branch as base_branch
 # from utils.encode.bytes import encode_bytes_to_base64_str, decode_base64_str_to_bytes
 
 def test_create_genesis_branch(debug=True):
-    # some fake signature encoded in bytes64 
-    signature = encode_bytes_to_base64_str(bytes(0))
     accept_conflicts = False
     msg = 'Genesis Submit'
     name = 'Genesis Branch'
-    create_branch_kwargs = dict(branch_type=TWIG_BRANCH_TYPE_ID, name=name, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
-    check_argument(arg=create_branch_kwargs, schema=lakat_branch_functions.create_genesis_branch_schema)
-    converted_kwargs = convert_to_bytes_based_on_schema(schema=lakat_branch_functions.create_genesis_branch_schema, data=create_branch_kwargs)
-    response = lakat_branch_functions.create_genesis_branch(**converted_kwargs)
-    decoded_response = convert_from_bytes_based_on_schema(schema=lakat_branch_functions.create_genesis_branch_schema["response"], data=response)
-    response = dict(branch_id=response, decoded_branch_id=decoded_response)
-    if debug: 
-        print('new branch id:', response)
+    response = base_branch.create_genesis_twig_branch(name, msg, accept_conflicts=accept_conflicts, debug=debug)
     return response
 
 def test_create_genesis_branch_with_initial_submit(debug=True):

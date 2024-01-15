@@ -6,7 +6,7 @@ from initialization.test_interaction import getDefaultEmptyInteractions
 from lakat.submit_old import content_submit
 from initialization.wp_structured_diffs import Diff
 
-def first_submit(edit, public_key, branchId):
+def first_submit(edit, public_key, branchId, returnSubmitKwargs=False):
     structured_text_old = WikipediaStructuredText(edit["*"])
     old_parts = structured_text_old.parts
     comment = edit["comment"]
@@ -59,7 +59,9 @@ def first_submit(edit, public_key, branchId):
     for submission_id, new_part_id in submission_id_to_new_part_id.items():
         new_part_id_to_bucket_id[new_part_id] = res["bucket_ids"][submission_id]
 
-    return new_part_id_to_bucket_id, res
+    response =  dict(
+        part_id_to_bucket_id=new_part_id_to_bucket_id, 
+        res
 
 
 

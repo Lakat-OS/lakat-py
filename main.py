@@ -1,11 +1,15 @@
 from werkzeug.wrappers import Request, Response
 from werkzeug.serving import run_simple
+from config.db_cfg import DB_NAME
+DB_NAME = "lakat_test_333"
 import lakat.branch.functions as lakat_branch_functions
 import lakat.storage.local_storage as lakat_storage
 import lakat.submit.functions as lakat_submit_functions
 import inspection.articles as inspection_articles
 import inspection.branch as inspection_branch
-
+import initialization.setup.example_deployment as example_deployment_setup
+from config.scrape_cfg import EXAMPLE_ARTICLE_TITLE
+from config.env import WITH_INTIAL_ARTICLE_DEPLOYMENT
 from config.encode_cfg import ENCODING_FUNCTION
 from config.rpc_cfg import RPC_PORT
 from utils.encode.language import encode_string
@@ -13,8 +17,23 @@ from utils.encode.bytes import key_encoder
 from utils.format.schema import check_argument, convert_to_bytes_based_on_schema, convert_from_bytes_based_on_schema
 from utils.format.rpc_call import wrap_rpc_call
 import math
-
 from jsonrpc import JSONRPCResponseManager, dispatcher
+
+
+### Example Deployments 
+if WITH_INTIAL_ARTICLE_DEPLOYMENT:
+    try:
+        example_deployment_setup.deploy_wikipedia_article(
+            article_name=EXAMPLE_ARTICLE_TITLE,
+            try_cache=False, verbose=True)
+    except Exception as e1:
+        print("Article Deployment did not work from cache. We try without cache. Reason is ", str(e1))
+        try:
+            example_deployment_setup.deploy_wikipedia_article(
+                article_name=EXAMPLE_ARTICLE_TITLE,
+                try_cache=True, verbose=True)
+        except Exception as e2:
+            print("Article Deployment did not work because: ", str(e2))
 
 @dispatcher.add_method
 def create_genesis_branch(branch_type: int, name: str, signature: str, accept_conflicts: bool, msg: str):
