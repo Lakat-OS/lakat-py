@@ -32,7 +32,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     ## CHECK PROOF
 
 
-    submit_trace_dict = dict(    
+    submit_trace_dict = dict(  
+        branchId=b"",  
         config=b"",
         newBranchHead=b"",
         changesTrace=[],
@@ -65,7 +66,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     if not branch_serialized:
         raise ERR_N_TCS_1
 
-    branch_dict = deserialize_from_key(branch_id, branch_serialized)
+    branch_dict = deserialize_from_key(branch_head_id, branch_serialized)
+    submit_trace_dict["branchId"] = branch_id
 
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
     branch_params_for_head = dict(parent_id=branch_dict["parent_id"], creation_ts=creation_ts, signature=branch_dict["signature"])

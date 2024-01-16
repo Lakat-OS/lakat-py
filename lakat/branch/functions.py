@@ -44,6 +44,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
 
     # submit trace dict
     submit_trace_dict = dict(
+        branchId=bytes(0),
         config=b"",
         newBranchHead=b"",
         changesTrace=[],
@@ -79,6 +80,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     stage_to_db(branch_id, branch_head_id)
     # add to submit_trace_backlog
     submit_trace_dict["newBranchHead"] = branch_head_id
+    submit_trace_dict["branchId"] = branch_id
 
     # create namespace and add branch id and namespace to branch params
     # scrambled_id = scramble_id(branch_id)
