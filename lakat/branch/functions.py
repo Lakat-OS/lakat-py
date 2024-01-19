@@ -47,7 +47,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
         branchId=bytes(0),
         config=b"",
         newBranchHead=b"",
-        changesTrace=[],
+        submittedBucketsRefs=[],
         pullRequests=[],
         nameResolution=[],
         nameResolutionRoot=b"",

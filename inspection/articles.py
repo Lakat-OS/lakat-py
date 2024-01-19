@@ -7,7 +7,9 @@ from inspection.branch import (
 from inspection.submits import (
     _find_branches_between_two_submits,
     _get_submit_trace_from_submit_id,
-    _get_branch_id_from_submit_id)
+    _get_branch_id_from_submit_id,
+    _get_submit_from_submit_id,
+    _get_submit_trace_from_submit_trace_id)
 from utils.encode.hashing import deserialize_from_key
 from utils.encode.language import encode_string_standard, join_encoded_bytes
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
@@ -88,14 +90,21 @@ def _get_n_article_ids_from_submit_id(from_submit_id: bytes, until_submit_id: by
     submit_id = from_submit_id
     branch_id = _get_branch_id_from_submit_id(submit_id=from_submit_id)
     for i in range(number_of_iterations):
-        submit_trace = _get_submit_trace_from_submit_id(submit_id=submit_id)
+        submit = _get_submit_from_submit_id(submit_id=submit_id)
+        submit_trace = _get_submit_trace_from_submit_trace_id(submit_trace_id=submit["submit_trace"])
         if submit_trace["branchId"] != branch_id and not allow_branch_hopping:
             retrieved_all_articles_between_two_submits = False
             break
         registered_articles.extend([dict(name=name[0], article_id=name[1], submit_id=submit_id, branch_id=submit_trace["branchId"]) for name in submit_trace["nameResolution"]])
+
         if submit_id==until_submit_id and check_until_submit_id_condition:
             retrieved_all_articles_between_two_submits = True
             break
+        if submit["parent_submit_id"]==b"":
+            retrieved_all_articles_between_two_submits = True
+            break
+        submit_id = submit["parent_submit_id"]
+
     return registered_articles, retrieved_all_articles_between_two_submits
 
 def _get_article_ids_between_two_submits(from_submit_id: bytes, until_submit_id: bytes, allow_branch_hopping: bool) -> List[bytes]:

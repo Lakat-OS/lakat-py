@@ -17,6 +17,12 @@ def _get_branch_id_from_submit_id(submit_id: bytes) -> bytes:
     submit_trace = _get_submit_trace_from_submit_id(submit_id=submit_id)
     return submit_trace["branchId"]
 
+def _get_submit_from_submit_id(submit_id: bytes) -> bytes:
+    return deserialize_from_key(key=submit_id, value=lakat_storage.get_from_db(submit_id))
+
+def _get_submit_trace_from_submit_trace_id(submit_trace_id: bytes) -> bytes:
+    return deserialize_from_key(key=submit_trace_id, value=lakat_storage.get_from_db(submit_trace_id))
+
 def _get_submit_trace_from_submit_id(submit_id: bytes) -> bytes:
-    submit = deserialize_from_key(key=submit_id, value=lakat_storage.get_from_db(submit_id))
-    return deserialize_from_key(key=submit["submit_trace"], value=lakat_storage.get_from_db(submit["submit_trace"]))
+    submit = _get_submit_from_submit_id(submit_id=submit_id)
+    return _get_submit_trace_from_submit_trace_id(submit_trace_id=submit["submit_trace"])

@@ -1,4 +1,4 @@
-DB_NAME = "lakat_te"
+DB_NAME = "lakat_Jan_19"
 DEV_TRIE_SUFFIX = "_trie_"
 DB_FOLDER = "file_db"
 TRIE_TYPE = "trie"
@@ -8,4 +8,4 @@ NAME_TRIE_FOLDER = "name-trie"
 DATA_TRIE_FOLDER = "data-trie"
 HASH_ENCODING_STYLE = "base64"  ## "base58" is also good
 NUMBER_OF_SUFFIXLESS_NAMESPACES = 10
-USE_MOCK_DATABASE = False
+USE_MOCK_DATABASE = True
