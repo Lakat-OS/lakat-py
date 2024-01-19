@@ -3,5 +3,6 @@
 reference
 .ssh
 mockdb
+file_db
 docker_db
 test_*.ipynb

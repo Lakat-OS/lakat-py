@@ -2,6 +2,7 @@ import lakat.storage.local_storage as lakat_storage
 import lakat.storage.branch_storage as lakat_local_branch_storage
 from utils.encode.hashing import deserialize_from_key
 from schema.bucket import bucket_schema
+from typing import Tuple, List
 
 #### BRANCH_DATE GETTERS ####
 
@@ -58,7 +59,6 @@ def _get_parsed_submit_trace_from_submit_trace_id(
         key=submit_trace_id, value=lakat_storage.get_from_db(submit_trace_id)
     )
     buckets = []
-    registered_names = []
     for change in submit_trace["changesTrace"]:
         if deserialize_buckets:
             bucket = deserialize_from_key(
@@ -67,9 +67,27 @@ def _get_parsed_submit_trace_from_submit_trace_id(
             buckets.append(bucket)
         else:
             buckets.append(change)
-    for name in submit_trace["nameResolution"]:
-        registered_names.append({"name": name[0], "id": name[1]})
+    registered_names = [
+        {"name": name[0], "id": name[1]} for name in submit_trace["nameResolution"]]
     return dict(new_buckets=buckets, new_registered_names=registered_names)
+
+def _get_registered_names_from_submit_trace_id(submit_trace_id: bytes) -> dict:
+    submit_trace = deserialize_from_key(key=submit_trace_id, value=lakat_storage.get_from_db(submit_trace_id))
+    return [{"name": name[0], "id": name[1]} for name in submit_trace["nameResolution"]]
+
+
+def _find_branches_between_initial_and_final_branch(initial_branch_id: bytes, final_branch_id: bytes, number_of_branches_to_query: int) -> Tuple[bool, int, List[bytes]]:
+    found = False
+    traversed_branched = list()
+    current_branch_id = initial_branch_id
+    for i in range(number_of_branches_to_query):
+        if current_branch_id==final_branch_id:
+            number_of_branches_traversed = i
+            found = True
+            break
+        branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(current_branch_id))
+        current_branch_id = branch_head_data["parent_branch"]
+    return found, number_of_branches_traversed, traversed_branched
 
 
 def _get_full_branch_info_from_branch_state_id(

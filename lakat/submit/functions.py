@@ -32,10 +32,11 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     ## CHECK PROOF
 
 
-    submit_trace_dict = dict(    
+    submit_trace_dict = dict(  
+        branchId=b"",  
         config=b"",
         newBranchHead=b"",
-        changesTrace=[],
+        submittedBucketsRefs=[],
         pullRequests=[],
         nameResolution=[],
         nameResolutionRoot=b"",
@@ -46,6 +47,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         socialRoot=b"",
         sprouts=[],
         sproutSelectionTrace=[])
+    
+    response = dict()
 
     ## DEFINE SUFFIX CROP
     if DEV_ENVIRONMENT in ["DEV", "LOCAL"]:
@@ -65,7 +68,12 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     if not branch_serialized:
         raise ERR_N_TCS_1
 
-    branch_dict = deserialize_from_key(branch_id, branch_serialized)
+    branch_dict = deserialize_from_key(branch_head_id, branch_serialized)
+    # update submit_trace_dict
+    submit_trace_dict["branchId"] = branch_id
+    # update response
+    response["branch_id"] = branch_id
+
 
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
     branch_params_for_head = dict(parent_id=branch_dict["parent_id"], creation_ts=creation_ts, signature=branch_dict["signature"])
@@ -85,6 +93,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
 
     # CREATE BUCKETS
     index_to_bucket_id = dict()
+    submittedBucketsRefs = [None] * len(contents)
+    handledContents = list()
     for content_index, content in enumerate(contents):
         if content["schema"] != DEFAULT_ATOMIC_BUCKET_SCHEMA:
             continue 
@@ -104,7 +114,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
         # add to submit_trace_backlog
-        submit_trace_dict["changesTrace"].append(bucket_id)
+        submittedBucketsRefs[content_index] = bucket_id
+        handledContents.append(dict(schema=content["schema"], content_index=content_index, bucket_id=bucket_id))
         submit_trace_dict["dataTrie"].extend([key for key,_ in data_trie_content["db"]])
 
 
@@ -134,7 +145,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         # add to db backlog
         stage_to_db(bucket_id, bucket_data)
         # add to submit_trace_backlog
-        submit_trace_dict["changesTrace"].append(bucket_id)
+        submittedBucketsRefs[content_index] = bucket_id
+        handledContents.append(dict(schema=content["schema"], content_index=content_index, bucket_id=bucket_id))
         submit_trace_dict["dataTrie"].extend([key for key,_ in data_trie_content["db"]])
 
         # check if there is a name resolution entry
@@ -152,7 +164,15 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
                 submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
                 # add to submit_trace name_trie list
                 submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
-
+    
+    if len(handledContents) != len(contents):
+        raise Exception("Not all contents were handled.")
+    # update submit_trace_dict
+    submit_trace_dict["submittedBucketsRefs"] = submittedBucketsRefs
+    # update response
+    response["bucket_refs"] = submittedBucketsRefs
+    response["registered_names"] = [
+        {"name": name[0], "id": name[1]} for name in submit_trace_dict["nameResolution"]]
 
     # UPDATE INTERACTION TRIE
     branch_params.update(dict(interaction=branch_dict["interaction"]))
@@ -169,6 +189,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         content=submit_trace.__dict__, codec=DEFAULT_CODEC, namespace=SUBMIT_TRACE_NS, suffix=branch_dict["ns"])
     # add to db backlog
     stage_to_db(submit_trace_cid, submit_trace_serialized)
+    # update response
+    response["submit_trace_id"] = submit_trace_cid
 
 
     # CREATE SUBMIT
@@ -180,15 +202,21 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     stage_to_db(submit_cid, submit_serialized)
     # update branch params
     branch_params.update(dict(stable_head=submit_cid))
+    # update response
+    response["submit_id"] = submit_cid
 
 
     # CREATE BRANCH OBJECT
     branch = BRANCH(**branch_params)
     # serialize config and add to db and trie backlog
-    branch_cid, branch_serialized = make_lakat_cid_and_serialize_from_suffix(
+    new_branch_state_cid, branch_serialized = make_lakat_cid_and_serialize_from_suffix(
         content=branch.__dict__, codec=DEFAULT_CODEC, namespace=BRANCH_NS, suffix=branch_dict["ns"])
     # add to db backlog
-    stage_to_db(branch_head_id, branch_serialized)
+    stage_to_db(new_branch_state_cid, branch_serialized)
+    # create a new branch head
+    stage_to_db(branch_id, new_branch_state_cid)
+    # update response
+    response["branch_state_id"] = new_branch_state_cid
 
     ## COMMIT ALL TRIE CHANGES
     name_res_content = commit_name_trie_changes(branch_id=branch_id, token=trie_token)
@@ -203,7 +231,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     commit_to_db()
     # stage_many_to_db(social_trie_content)
 
-    return branch_head_id
+    return response
 
 
 # TODO: MOVE This function to bucket files
@@ -247,6 +275,31 @@ def get_root(parent_bucket, branch_id, branch_suffix, token=0x0):
         return parent_bucket, is_genesis, is_invalid_parent
 
 
+submit_content_for_twig_response_schema = {
+    "type": "object",
+    "properties": {
+        "branch_id": {"type": "string", "format": "byte"},
+        "branch_state_id": {"type": "string", "format": "byte"},
+        "submit_id": {"type": "string", "format": "byte"},
+        "submit_trace_id": {"type": "string", "format": "byte"},
+        "bucket_refs": {
+            "type": "array", 
+            "items": {"type": "string", "format": "byte"}
+        },
+        "registered_names": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "varint_encoded": "true"},
+                    "id": {"type": "string", "format": "byte"}},
+                "required": ["name", "id"]
+            },
+        },
+    },
+    "required": ["branch_id", "bucket_refs", "registered_names", "submit_trace_id", "submit_id","branch_state_id"],
+}
+
 
 submit_content_for_twig_schema = {
     "type": "object",
@@ -258,5 +311,5 @@ submit_content_for_twig_schema = {
         "msg": {"type": "string", "varint_encoded": "true"}
     },
     "required": ["branch_id", "contents", "public_key", "proof", "msg"],
-    "response": {"type": "string", "format": "byte"}
+    "response": submit_content_for_twig_response_schema
 }
