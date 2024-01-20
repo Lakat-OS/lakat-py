@@ -7,6 +7,7 @@ import lakat.storage.local_storage as lakat_storage
 import lakat.submit.functions as lakat_submit_functions
 import inspection.articles as inspection_articles
 import inspection.branch as inspection_branch
+import inspection.bucket as inspection_bucket
 import initialization.setup.example_deployment as example_deployment_setup
 from config.scrape_cfg import EXAMPLE_ARTICLE_TITLE
 from config.env import WITH_INTIAL_ARTICLE_DEPLOYMENT
@@ -90,6 +91,16 @@ def get_branch_data_from_branch_state_id(branch_state_id: str, deserialize_bucke
         schema=inspection_branch.get_branch_data_from_branch_state_id_schema,
         kwargs=kwargs)
 
+
+@dispatcher.add_method
+def get_local_branches():
+    return wrap_rpc_call(
+        function=inspection_branch.get_local_branches,
+        schema=inspection_branch.get_local_branches_schema,
+        kwargs=dict())
+
+#### ARTICLE GETTERS ###################################
+
 @dispatcher.add_method
 def get_article_from_article_name(branch_id: str, name: str):
     # convert arguments to keyword dictionary
@@ -100,14 +111,50 @@ def get_article_from_article_name(branch_id: str, name: str):
         schema=inspection_articles.get_article_from_article_name_schema,
         kwargs=kwargs)
 
+@dispatcher.add_method
+def get_article_id_from_article_name(branch_id: str,  name: bytes):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, name=name)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_articles.get_article_id_from_article_name,
+        schema=inspection_articles.get_article_id_from_article_name_schema,
+        kwargs=kwargs)
 
 @dispatcher.add_method
-def get_local_branches():
+def get_article_from_article_id(bucket_id: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(bucket_id=bucket_id)
+    # return call
     return wrap_rpc_call(
-        function=inspection_branch.get_local_branches,
-        schema=inspection_branch.get_local_branches_schema,
-        kwargs=dict())
+        function=inspection_articles.get_article_from_article_id,
+        schema=inspection_articles.get_article_from_article_id_schema,
+        kwargs=kwargs)
 
+##### BUCKET GETTERS ###################################
+
+@dispatcher.add_method
+def get_bucket_from_bucket_id(bucket_id: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(bucket_id=bucket_id)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_bucket.get_bucket_from_bucket_id,
+        schema=inspection_bucket.get_bucket_from_bucket_id_schema,
+        kwargs=kwargs) 
+
+@dispatcher.add_method
+def get_bucket_head_from_bucket_id(branch_id: str, bucket_id: str, deserialize_bucket: bool):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, bucket_id=bucket_id, deserialize_bucket=deserialize_bucket)
+    # return call
+    return wrap_rpc_call(
+        function=inspection_bucket.get_bucket_head_from_bucket_id,
+        schema=inspection_bucket.get_bucket_head_from_bucket_id_schema,
+        kwargs=kwargs)      
+
+
+##### DATABASE FUNCTIONS ################################
 
 @dispatcher.add_method
 def restart_db_with_name(name: str):

@@ -10,13 +10,15 @@ from inspection.submits import (
     _get_branch_id_from_submit_id,
     _get_submit_from_submit_id,
     _get_submit_trace_from_submit_trace_id)
+from inspection.bucket import (
+    _get_bucket_head_from_bucket_id)
 from utils.encode.hashing import deserialize_from_key
 from utils.encode.language import encode_string_standard, join_encoded_bytes
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
 from config.query_cfg import NUMBER_OF_BRANCHES_TO_TRAVERSE_ON_QUERY, MAX_NUMBER_OF_SUBMIT_QUERIES
 from typing import List, Tuple
 
-
+# FIXME: This should be _get_article_root_id_from_article_id
 def _get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
     ## get the branch using get_branch_head_data_from_branch_id
     branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(branch_id))
@@ -27,6 +29,18 @@ def _get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
     lakat_trie_storage.clear_staged_name_trie_changes(branch_id=branch_id, token=temp_get_request_token)
     return name
 
+def get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
+    return _get_article_id_from_article_name(branch_id=branch_id, name=name)
+
+get_article_id_from_article_name_schema = {
+    "type": "object",
+    "properties": {
+        "branch_id": {"type": "string", "format": "byte"},
+        "name": {"type": "string", "varint_encoded": "true"}
+    },
+    "required": ["branch_id", "name"],
+    "response": {"type": "string", "format": "byte"}
+    }
 
 def _get_data_from_bucket(bucket_id: bytes) -> bytes:
     bucket = deserialize_from_key(key=bucket_id, value=lakat_storage.get_from_db(bucket_id))
@@ -45,8 +59,9 @@ def _get_data_from_bucket(bucket_id: bytes) -> bytes:
 
 
 def get_article_from_article_name(branch_id: bytes, name: bytes) -> bytes:
-    article_id = _get_article_id_from_article_name(branch_id=branch_id, name=name)
-    return _get_data_from_bucket(bucket_id=article_id)
+    article_root_id = _get_article_id_from_article_name(branch_id=branch_id, name=name)
+    bucket_head_id = _get_bucket_head_from_bucket_id(branch_id=branch_id, bucket_id=article_root_id) 
+    return _get_data_from_bucket(bucket_id=bucket_head_id)
 
 get_article_from_article_name_schema = {
   "type": "object",
@@ -58,6 +73,17 @@ get_article_from_article_name_schema = {
   "response": {"type": "string", "varint_encoded": "true"}
 }
 
+def get_article_from_article_id(bucket_id: bytes) -> bytes:
+    return _get_data_from_bucket(bucket_id=bucket_id)
+
+get_article_from_article_id_schema = {
+    "type": "object",
+    "properties": {
+        "bucket_id": {"type": "string", "format": "byte"}
+    },
+    "required": ["bucket_id"],
+    "response": {"type": "string", "varint_encoded": "true"}
+    }
 
 def get_article_ids_until_submit_id(branch_id: bytes, until_submit_id: bytes):
     branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(branch_id))

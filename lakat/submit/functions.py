@@ -150,20 +150,27 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
         submit_trace_dict["dataTrie"].extend([key for key,_ in data_trie_content["db"]])
 
         # check if there is a name resolution entry
+        new_name_registration = True
         if content["data"].get("name"):
             # TODO: Should think of a way to pass bytes(0) into this arg, so that this block will not be executed.
             if not language_utils.decode_bytes(content["data"].get("name")):
-                branch_params.update(dict(name_resolution=branch_dict["name_resolution"]))
-                continue
-            else:
-                # add to the name resolution trie 
-                name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
-                # update the name_resolution_pointer in the branch data
-                branch_params.update(dict(name_resolution=name_res_root))
-                # add to submit_trace_backlog
-                submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
-                # add to submit_trace name_trie list
-                submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
+                new_name_registration = False 
+        
+        # FIXME!! I have to check if the article is already registered.  
+
+        if not new_name_registration:
+            branch_params.update(dict(name_resolution=branch_dict["name_resolution"]))
+            continue
+
+        # FIXME!! You must add the article root to the name resolution trie!! Not the current bucket id, but the root of the id.
+        # add to the name resolution trie 
+        name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
+        # update the name_resolution_pointer in the branch data
+        branch_params.update(dict(name_resolution=name_res_root))
+        # add to submit_trace_backlog
+        submit_trace_dict["nameResolution"].append([content["data"]["name"], bucket_id])
+        # add to submit_trace name_trie list
+        submit_trace_dict["nameTrie"].extend([key for key,_ in name_res_content["db"]])
     
     if len(handledContents) != len(contents):
         raise Exception("Not all contents were handled.")
@@ -238,6 +245,16 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
 def get_root(parent_bucket, branch_id, branch_suffix, token=0x0):
     """
     Find the root bucket based on the parent bucket.
+
+    If parent bucket is bytes(0), then this is a genesis bucket (the root will be zero, because the bucket cannot reference itself)
+
+    If parent bucket id is not bytes(0) but is not to be found, then the is_invalid_parent flag will be raised. 
+
+    If parent bucket id is found, one checks the remote or local database and recovers its root:
+        - If its root is bytes(0) that parent must be a genesis bucket, i.e. the root.
+        - If its root is not bytes(0) we check the head state of the bucket that is stored inside the data trie: 
+            - If that head state is the parent bucket, we are still in the same chain and that root stays the root.
+            - If that head state is not the parent bucket, other buckets must have been added previously. So we must create a new root, namely the parent bucket id
     """
 
     is_genesis = False
@@ -265,6 +282,7 @@ def get_root(parent_bucket, branch_id, branch_suffix, token=0x0):
             is_genesis = False
             return root_bucket_id, is_genesis, is_invalid_parent
         else:
+            # if not the parent, then parent_bucket will be the new root (the bucket has already been updated before)
             is_invalid_parent = False
             is_genesis = False
             return parent_bucket, is_genesis, is_invalid_parent
