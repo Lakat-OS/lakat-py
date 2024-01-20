@@ -59,7 +59,7 @@ def _get_parsed_submit_trace_from_submit_trace_id(
         key=submit_trace_id, value=lakat_storage.get_from_db(submit_trace_id)
     )
     buckets = []
-    for change in submit_trace["changesTrace"]:
+    for change in submit_trace["submittedBucketsRefs"]:
         if deserialize_buckets:
             bucket = deserialize_from_key(
                 key=change, value=lakat_storage.get_from_db(change)
@@ -70,6 +70,7 @@ def _get_parsed_submit_trace_from_submit_trace_id(
     registered_names = [
         {"name": name[0], "id": name[1]} for name in submit_trace["nameResolution"]]
     return dict(new_buckets=buckets, new_registered_names=registered_names)
+
 
 def _get_registered_names_from_submit_trace_id(submit_trace_id: bytes) -> dict:
     submit_trace = deserialize_from_key(key=submit_trace_id, value=lakat_storage.get_from_db(submit_trace_id))
