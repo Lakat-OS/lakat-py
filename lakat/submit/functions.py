@@ -162,7 +162,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
             branch_params.update(dict(name_resolution=branch_dict["name_resolution"]))
             continue
 
-        # FIXME!! You must add the article root to the name resolution trie!! Not the current bucket id, but the root of the id.
+        # FIXME!! You must add the article root to the name resolution trie!! Not the current bucket id, but the root of the id (use the get_root function, because a new article has to be registered if already existing head is not the parent)
+
         # add to the name resolution trie 
         name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
         # update the name_resolution_pointer in the branch data
@@ -188,12 +189,14 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # UPDATE SPROUTS
     branch_params.update(dict(sprouts=branch_dict["sprouts"], sprout_selection=branch_dict["sprout_selection"]))
 
-
     # CREATE SUBMIT TRACE
     submit_trace = SUBMIT_TRACE(**submit_trace_dict)
     # serialize config and add to db and trie backlog
     submit_trace_cid, submit_trace_serialized = make_lakat_cid_and_serialize_from_suffix(
-        content=submit_trace.__dict__, codec=DEFAULT_CODEC, namespace=SUBMIT_TRACE_NS, suffix=branch_dict["ns"])
+        content=submit_trace.__dict__,
+        codec=DEFAULT_CODEC,
+        namespace=SUBMIT_TRACE_NS,
+        suffix=branch_dict["ns"])
     # add to db backlog
     stage_to_db(submit_trace_cid, submit_trace_serialized)
     # update response
