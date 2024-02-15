@@ -126,6 +126,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     # update branch params
     branch_params.update(dict(name_resolution=name_res_root))
 
+    # CREATE PARENT NAME RESOLUTION ENTRIES
+    branch_params.update(dict(parent_name_resolution=bytes(0)))
 
     # CREATE SOCIAL INTERACTIONS ENTRIES
     create_interaction_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
@@ -135,6 +137,8 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     # update branch params
     branch_params.update(dict(interaction=social_root))
 
+    # CREATE PARENT INTERACTIONS ENTRIES
+    branch_params.update(dict(parent_interaction=bytes(0)))
 
     # CREATE SUBMIT TRACE
     submit_trace = SUBMIT_TRACE(**submit_trace_dict)
@@ -150,6 +154,9 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     create_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
     data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, token=trie_token)
 
+    # CREATE PARENT DATA TRIE
+    branch_params.update(dict(parent_data_trie=bytes(0)))
+
 
     # CREATE SUBMIT
     submit = SUBMIT(parent_submit_id=parent_submit_id, submit_msg=msg, trie_root=data_trie_root, submit_trace=submit_trace_cid)
@@ -160,6 +167,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     stage_to_db(submit_cid, submit_serialized)
     # update branch params
     branch_params.update(dict(stable_head=submit_cid))
+
 
     # CREATE BRANCH OBJECT
     branch = BRANCH(**branch_params)

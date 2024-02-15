@@ -1,6 +1,6 @@
 class BRANCH :
 
-    def __init__(self, id, parent_id, ns, name, stable_head, creation_ts, config, name_resolution, interaction, sprouts, sprout_selection, signature) :
+    def __init__(self, id, parent_id, ns, name, stable_head, creation_ts, config, name_resolution, interaction, parent_name_resolution, parent_interaction, parent_data_trie,sprouts, sprout_selection, signature) :
         self.id = id
         self.ns = ns
         self.name = name
@@ -11,6 +11,9 @@ class BRANCH :
         self.sprout_selection = sprout_selection
         self.name_resolution = name_resolution
         self.interaction = interaction
+        self.parent_name_resolution = parent_name_resolution
+        self.parent_interaction = parent_interaction
+        self.parent_data_trie = parent_data_trie
         self.signature = signature
         self.creation_ts = creation_ts
 

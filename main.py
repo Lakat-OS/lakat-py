@@ -112,13 +112,13 @@ def get_article_from_article_name(branch_id: str, name: str):
         kwargs=kwargs)
 
 @dispatcher.add_method
-def get_article_id_from_article_name(branch_id: str,  name: bytes):
+def get_article_root_id_from_article_name(branch_id: str,  name: bytes):
     # convert arguments to keyword dictionary
     kwargs = dict(branch_id=branch_id, name=name)
     # return call
     return wrap_rpc_call(
-        function=inspection_articles.get_article_id_from_article_name,
-        schema=inspection_articles.get_article_id_from_article_name_schema,
+        function=inspection_articles.get_article_root_id_from_article_name,
+        schema=inspection_articles.get_article_root_id_from_article_name_schema,
         kwargs=kwargs)
 
 @dispatcher.add_method

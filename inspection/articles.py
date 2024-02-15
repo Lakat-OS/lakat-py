@@ -16,31 +16,86 @@ from utils.encode.hashing import deserialize_from_key
 from utils.encode.language import encode_string_standard, join_encoded_bytes
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
 from config.query_cfg import NUMBER_OF_BRANCHES_TO_TRAVERSE_ON_QUERY, MAX_NUMBER_OF_SUBMIT_QUERIES
-from typing import List, Tuple
+from config.response_cfg import (
+    TRIE_SUCCESS_CODE, 
+    TRIE_ERROR_CODE_NODE_DOES_NOT_HAVE_THIS_CHILD,
+    ARTICLE_NOT_FOUND_RESPONSE_CODE, 
+    ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR,
+    ARTICLE_FOUND_RESPONSE_CODE)
+from typing import List, Tuple, Mapping
 
 # FIXME: This should be _get_article_root_id_from_article_id
-def _get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
-    ## get the branch using get_branch_head_data_from_branch_id
-    branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(branch_id))
-    ## get the name resolution data from trie
-    temp_get_request_token = random.randint(1, 2**32-1)
-    name = lakat_trie_storage.get_name_trie(branch_id=branch_id, branch_suffix=branch_head_data["ns"], key=name, 
-    token=temp_get_request_token)
-    lakat_trie_storage.clear_staged_name_trie_changes(branch_id=branch_id, token=temp_get_request_token)
-    return name
+def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number_of_branches_to_query: int) -> Tuple[bytes, int]:
 
-def get_article_id_from_article_name(branch_id: bytes, name: bytes) -> bytes:
-    return _get_article_id_from_article_name(branch_id=branch_id, name=name)
+    resp_code_dep_on_trie = lambda x : (ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR
+                if x else ARTICLE_NOT_FOUND_RESPONSE_CODE)
+    previous_branch_id = branch_id
+    current_branch_id = branch_id
+    possible_trie_error = False
+    parent_name_resolution_id==bytes(0)
+    for i in range(number_of_branches_to_query):
 
-get_article_id_from_article_name_schema = {
+        branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(current_branch_id))
+        # consider two cases. 
+        # Either the name is in the starting branch or it is in one 
+        # of the ancestral branches
+        if i==0:
+            # check if the name is in the starging branch (i.e. i=0)
+            temp_get_request_token = random.randint(1, 2**32-1)
+            article_root_id, trie_response_code = lakat_trie_storage.get_name_trie(
+                branch_id=current_branch_id, branch_suffix=branch_head_data["ns"], 
+                key=name, token=temp_get_request_token)
+            lakat_trie_storage.clear_staged_name_trie_changes(branch_id=branch_id, token=temp_get_request_token)
+        else: 
+            # check if the name is in the parent branch 
+            # For that we can check the parent_data_tries_at_root_submit, which maps
+            # the child branch id to the parent branch name resolution root id 
+            # at the branching submit.
+            article_root_id, trie_response_code = lakat_trie_storage.get_parent_data_trie_value(previous_branch_id, parent_name_resolution_id, name)
+
+        if trie_response_code==TRIE_SUCCESS_CODE:
+            return article_root_id, ARTICLE_FOUND_RESPONSE_CODE, current_branch_id, i
+
+        # there is some other trie error (not related to the entry not existing)
+        possible_trie_error = trie_response_code!=TRIE_ERROR_CODE_NODE_DOES_NOT_HAVE_THIS_CHILD
+
+        # the name is certainly not in this trie. Let's try the parent branch
+        parent_name_resolution_id = branch_head_data["parent_name_resolution"]
+        if parent_name_resolution_id==bytes(0):
+            # search is over
+            return bytes(0), resp_code_dep_on_trie(possible_trie_error), current_branch_id, i
+
+        # update the current branch id for the next iteration.
+        previous_branch_id = current_branch_id
+        current_branch_id = branch_head_data["parent_id"]
+
+    # search is over (nothing was found).
+    return bytes(0), resp_code_dep_on_trie(possible_trie_error), previous_branch_id, i
+
+
+
+def get_article_root_id_from_article_name(branch_id: bytes, name: bytes) -> Mapping[str, bytes or int]:
+    article_root_id, response_code, at_branch, branch_iterations = _get_article_root_id_from_article_name(branch_id=branch_id, name=name)
+    return {"article_root_id": article_root_id, "response_code": response_code, "at_branch": at_branch, "branch_iterations": branch_iterations}
+
+get_article_root_id_from_article_name_schema = {
     "type": "object",
     "properties": {
         "branch_id": {"type": "string", "format": "byte"},
         "name": {"type": "string", "varint_encoded": "true"}
     },
     "required": ["branch_id", "name"],
-    "response": {"type": "string", "format": "byte"}
+    "response": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "varint_encoded": "true"},
+            "response_code": {"type": "integer"},
+            "at_branch": {"type": "string", "format": "byte"},
+            "branch_iterations": {"type": "integer"}
+        },
+        "required": ["name", "response_code", "at_branch", "branch_iterations"]
     }
+}
 
 def _get_data_from_bucket(bucket_id: bytes) -> bytes:
     bucket = deserialize_from_key(key=bucket_id, value=lakat_storage.get_from_db(bucket_id))
@@ -59,7 +114,7 @@ def _get_data_from_bucket(bucket_id: bytes) -> bytes:
 
 
 def get_article_from_article_name(branch_id: bytes, name: bytes) -> bytes:
-    article_root_id = _get_article_id_from_article_name(branch_id=branch_id, name=name)
+    article_root_id = _get_article_root_id_from_article_name(branch_id=branch_id, name=name)
     bucket_head_id = _get_bucket_head_from_bucket_id(branch_id=branch_id, bucket_id=article_root_id) 
     return _get_data_from_bucket(bucket_id=bucket_head_id)
 

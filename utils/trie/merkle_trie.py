@@ -3,6 +3,11 @@ from copy import deepcopy
 from utils.encode.hashing import parse_cid, make_lakat_cid_and_serialize_from_suffix, deserialize, hexlify, deserialize_from_key, serialize
 from typing import List, Tuple
 from config.encode_cfg import DEFAULT_CODEC
+from config.response_cfg import (
+    TRIE_SUCCESS_CODE, 
+    TRIE_ERROR_CODE_NODE_DOES_NOT_HAVE_THIS_CHILD, 
+    TRIE_ERROR_CODE_NODE_DOES_NOT_EXIST_IN_DB, 
+    TRIE_ERROR_CODE_NODE_DOES_NOT_EXIST)
 
 
 class MerkleTrie:
@@ -23,7 +28,7 @@ class MerkleTrie:
         """ Set the root of the trie to an empty root. Only used at initialization."""
         # get root_id from db
         node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=root_id, token=token, put_to_cache_if_not_already=True)
-        if code!=200:
+        if code!=TRIE_SUCCESS_CODE:
             raise Exception("Root node not found in db.")
         if not in_cache:
             self.cache[root_id] = node
@@ -164,23 +169,23 @@ class MerkleTrie:
 
     def _get_recursive(self, current_cid: bytes, path: List[int], token:int = 0, depth: int = 0) -> Tuple[any, bool]:
         if current_cid == bytes(0):
-            return None, 400  # Node does not exist
+            return None, TRIE_ERROR_CODE_NODE_DOES_NOT_EXIST  # Node does not exist
         # Retrieve node from cache or database
         node, code, in_cache = self.retrieve_node_from_cache_or_db(cid=current_cid, token=token, put_to_cache_if_not_already=True)
 
-        if code!=200:
+        if code!=TRIE_SUCCESS_CODE:
             return None, code
         
         if not in_cache:
             self.cache[current_cid] = node
 
         if depth == len(path):
-            return node.get('value'), 200  # Return the value at the leaf
+            return node.get('value'), TRIE_SUCCESS_CODE  # Return the value at the leaf
 
         char = path[depth]
         child_cid = node["children"].get(char)
         if child_cid is None:
-            return None, 500  # Child node does not exist
+            return None, TRIE_ERROR_CODE_NODE_DOES_NOT_HAVE_THIS_CHILD  # Child node does not exist
 
         return self._get_recursive(current_cid=child_cid, path=path, depth=depth + 1, token=token)
     
@@ -196,7 +201,7 @@ class MerkleTrie:
         else:
             serialized = self.db.get(cid)
             if serialized is None:
-                return None, 300, False  # Node does not exist in db
+                return None, TRIE_ERROR_CODE_NODE_DOES_NOT_EXIST_IN_DB, False  # Node does not exist in db
             node = deserialize_from_key(key=cid, value=serialized)
             # otherwise set into cached storage
             if put_to_cache_if_not_already:
@@ -205,7 +210,7 @@ class MerkleTrie:
                 else:
                     self.store_in_temporary_cache(token=token, content_dict={cid: node})
                 node_in_cache = True
-        return node, 200, node_in_cache
+        return node, TRIE_SUCCESS_CODE, node_in_cache
     
 
     def store_in_temporary_cache(self, token: int, content_dict: dict):
