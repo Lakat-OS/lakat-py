@@ -20,6 +20,11 @@ name_tries : Mapping[bytes, MerkleTrie] = dict()
 data_tries : Mapping[bytes, MerkleTrie] = dict()
 interaction_tries : Mapping[bytes, MerkleTrie] = dict()
 
+# Parent Branch Tries
+parent_name_tries_at_root_submit : Mapping[bytes, MerkleTrie] = dict()
+parent_data_tries_at_root_submit : Mapping[bytes, MerkleTrie] = dict()
+parent_interaction_tries_at_root_submit : Mapping[bytes, MerkleTrie] = dict()
+
 # branches
 local_branches = list()
 

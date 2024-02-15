@@ -42,6 +42,12 @@ def _get_branch_data_from_branch_state_id(branch_state_id: bytes) -> bytes:
             The name resolution id
         - interaction: bytes
             The interaction id
+        - parent_name_resolution: bytes
+            The name resolution trie root id at the root submit (where the current branch emerged)
+        - parent_interaction: bytes
+            The interaction trie root id at the root submit (where the current branch emerged)
+        - parent_data_trie: bytes
+            The data trie root id at the root submit (where the current branch emerged)
         - signature: bytes
             The signature id
         - creation_ts: int
@@ -105,27 +111,34 @@ def _get_full_branch_info_from_branch_state_id(
     -------
     """
     branch_data = _get_branch_data_from_branch_state_id(branch_state_id=branch_state_id)
+    # 1) dereference the branch config
     branch_data_config = deserialize_from_key(
         key=branch_data["config"],
         value=lakat_storage.get_from_db(branch_data["config"]),
     )
+    # add the dereferenced data to the branch "config" data
     branch_data["config"] = dict(
         accept_conflicts=branch_data_config["acceptConflicts"],
         branch_type=branch_data_config["branchType"],
     )
+
+    # 2) dereference the name resolution
     branch_data_stable_head = deserialize_from_key(
         key=branch_data["stable_head"],
         value=lakat_storage.get_from_db(branch_data["stable_head"]),
     )
+    # add the dereferenced data to the branch "stable_head" data
     branch_data["stable_head"] = dict(
         parent_submit_id=branch_data_stable_head["parent_submit_id"],
         submit_msg=branch_data_stable_head["submit_msg"],
     )
+    # 3) parse the submit trace
     branch_data_submit_trace = _get_parsed_submit_trace_from_submit_trace_id(
         submit_trace_id=branch_data_stable_head["submit_trace"],
         deserialize_buckets=deserialize_buckets,
     )
     branch_data["submit_trace"] = branch_data_submit_trace
+
     return branch_data
 
 
@@ -168,6 +181,12 @@ def get_branch_data_from_branch_id(
             The name resolution id
         - interaction: bytes
             The interaction id
+        - parent_name_resolution: bytes
+            The name resolution trie root id at the root submit (where the current branch emerged)
+        - parent_interaction: bytes
+            The interaction trie root id at the root submit (where the current branch emerged)
+        - parent_data_trie: bytes
+            The data trie root id at the root submit (where the current branch emerged)
         - signature: bytes
             The signature id
         - creation_ts: int
@@ -244,6 +263,9 @@ get_branch_data_from_branch_id_response_schema = {
         "sprout_selection": {"type": "array"},
         "name_resolution": {"type": "string", "format": "byte"},
         "interaction": {"type": "string", "format": "byte"},
+        "parent_name_resolution": {"type": "string", "format": "byte"},
+        "parent_interaction": {"type": "string", "format": "byte"},
+        "parent_data_trie": {"type": "string", "format": "byte"},
         "signature": {"type": "string", "format": "byte"},
         "creation_ts": {"type": "integer"},
         "submit_trace": submit_trace_schema
@@ -257,6 +279,9 @@ get_branch_data_from_branch_id_response_schema = {
         "config",
         "name_resolution",
         "interaction",
+        "parent_name_resolution",
+        "parent_interaction",
+        "parent_data_trie",
         "signature",
         "creation_ts",
         "submit_trace",

@@ -12,11 +12,13 @@ from config.encode_cfg import DEFAULT_SUFFIX_CROP, DEV_SUFFIX_CROP, DEFAULT_CODE
 from db.namespaces import (BRANCH_NS, ATOMIC_BUCKET_NS, MOLECULAR_BUCKET_NS, BRANCH_HEAD_NS, SUBMIT_NS, SUBMIT_TRACE_NS)
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
 from config.branch_cfg import PROPER_BRANCH_TYPE_ID
+from config.response_cfg import TRIE_SUCCESS_CODE
 from lakat.timestamp import getTimestamp
 from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
+from lakat.errors import ERR_N_TRIE_1
 from lakat.storage.local_storage import (commit_to_db, get_from_db, stage_many_to_db, stage_to_db)
-from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes, get_name_trie, get_data_trie, get_interaction_trie)
+from lakat.storage.trie_storage import (stage_name_trie, stage_data_trie, stage_interaction_trie, commit_name_trie_changes, commit_data_trie_changes, commit_interaction_trie_changes, get_data_trie, get_interaction_trie)
 from config.encode_cfg import ENCODING_FUNCTION
 from lakat.errors import (ERR_N_TCS_1, ERR_T_BCKT_1, ERR_N_TCS_2)
 from schema.bucket import bucket_contents_schema
@@ -91,6 +93,12 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     ## ADD THE BRANCH NAME TO THE BRANCH PARAMS
     branch_params.update(dict(name=branch_dict["name"]))
 
+    ## ADD THE PARENT BRANCH TRIE INFORMATION 
+    branch_params.update(dict(
+        parent_name_resolution=branch_dict["parent_name_resolution"],
+        parent_interaction=branch_dict["parent_interaction"],
+        parent_data_trie=branch_dict["parent_data_trie"]))
+
     # CREATE BUCKETS
     index_to_bucket_id = dict()
     submittedBucketsRefs = [None] * len(contents)
@@ -162,7 +170,8 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
             branch_params.update(dict(name_resolution=branch_dict["name_resolution"]))
             continue
 
-        # FIXME!! You must add the article root to the name resolution trie!! Not the current bucket id, but the root of the id.
+        # FIXME!! You must add the article root to the name resolution trie!! Not the current bucket id, but the root of the id (use the get_root function, because a new article has to be registered if already existing head is not the parent)
+
         # add to the name resolution trie 
         name_res_root, name_res_content = stage_name_trie(branch_id, branch_dict["ns"], content["data"]["name"], bucket_id, codec=DEFAULT_CODEC, token=trie_token)
         # update the name_resolution_pointer in the branch data
@@ -188,12 +197,14 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     # UPDATE SPROUTS
     branch_params.update(dict(sprouts=branch_dict["sprouts"], sprout_selection=branch_dict["sprout_selection"]))
 
-
     # CREATE SUBMIT TRACE
     submit_trace = SUBMIT_TRACE(**submit_trace_dict)
     # serialize config and add to db and trie backlog
     submit_trace_cid, submit_trace_serialized = make_lakat_cid_and_serialize_from_suffix(
-        content=submit_trace.__dict__, codec=DEFAULT_CODEC, namespace=SUBMIT_TRACE_NS, suffix=branch_dict["ns"])
+        content=submit_trace.__dict__,
+        codec=DEFAULT_CODEC,
+        namespace=SUBMIT_TRACE_NS,
+        suffix=branch_dict["ns"])
     # add to db backlog
     stage_to_db(submit_trace_cid, submit_trace_serialized)
     # update response
@@ -275,7 +286,9 @@ def get_root(parent_bucket, branch_id, branch_suffix, token=0x0):
     root_bucket_id = parent_bucket_data["root_bucket"]
     if root_bucket_id:
         # get the head from the trie
-        bucket_head_id = get_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, key=root_bucket_id, token=token)
+        bucket_head_id, response_code = get_data_trie(branch_id=branch_id, branch_suffix=branch_suffix, key=root_bucket_id, token=token)
+        if response_code!=TRIE_SUCCESS_CODE:
+            raise ERR_N_TRIE_1(response_code)
         # check if bucket_head_id is the parent
         if parent_bucket==bucket_head_id:
             is_invalid_parent = False

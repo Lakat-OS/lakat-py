@@ -8,4 +8,5 @@ def wrap_rpc_call(function: callable, schema: dict, kwargs: dict):
     # convert arguments to bytes
     converted_kwargs = convert_to_bytes_based_on_schema(schema=schema, data=kwargs)
     # call function and convert result to stringified bytes dictionary
-    return convert_from_bytes_based_on_schema(schema=schema["response"], data=function(**converted_kwargs))
+    data = function(**converted_kwargs)
+    return convert_from_bytes_based_on_schema(schema=schema["response"], data=data)
