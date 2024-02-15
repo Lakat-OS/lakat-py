@@ -25,14 +25,14 @@ from config.response_cfg import (
 from typing import List, Tuple, Mapping
 
 # FIXME: This should be _get_article_root_id_from_article_id
-def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number_of_branches_to_query: int) -> Tuple[bytes, int]:
+def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number_of_branches_to_query: int) -> Tuple[bytes, int, bytes, int]:
 
     resp_code_dep_on_trie = lambda x : (ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR
                 if x else ARTICLE_NOT_FOUND_RESPONSE_CODE)
     previous_branch_id = branch_id
     current_branch_id = branch_id
     possible_trie_error = False
-    parent_name_resolution_id==bytes(0)
+    parent_name_resolution_id=bytes(0)
     for i in range(number_of_branches_to_query):
 
         branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(current_branch_id))
@@ -73,9 +73,8 @@ def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number
     return bytes(0), resp_code_dep_on_trie(possible_trie_error), previous_branch_id, i
 
 
-
 def get_article_root_id_from_article_name(branch_id: bytes, name: bytes) -> Mapping[str, bytes or int]:
-    article_root_id, response_code, at_branch, branch_iterations = _get_article_root_id_from_article_name(branch_id=branch_id, name=name)
+    article_root_id, response_code, at_branch, branch_iterations = _get_article_root_id_from_article_name(branch_id=branch_id, name=name, number_of_branches_to_query=NUMBER_OF_BRANCHES_TO_TRAVERSE_ON_QUERY)
     return {"article_root_id": article_root_id, "response_code": response_code, "at_branch": at_branch, "branch_iterations": branch_iterations}
 
 get_article_root_id_from_article_name_schema = {
@@ -98,7 +97,8 @@ get_article_root_id_from_article_name_schema = {
 }
 
 def _get_data_from_bucket(bucket_id: bytes) -> bytes:
-    bucket = deserialize_from_key(key=bucket_id, value=lakat_storage.get_from_db(bucket_id))
+    bucket_serialized = lakat_storage.get_from_db(bucket_id)
+    bucket = deserialize_from_key(key=bucket_id, value=bucket_serialized)
     if bucket["schema_id"]==DEFAULT_MOLECULAR_BUCKET_SCHEMA:
 
         overall_encoded_data = encode_string_standard("")
@@ -114,9 +114,23 @@ def _get_data_from_bucket(bucket_id: bytes) -> bytes:
 
 
 def get_article_from_article_name(branch_id: bytes, name: bytes) -> bytes:
-    article_root_id = _get_article_root_id_from_article_name(branch_id=branch_id, name=name)
-    bucket_head_id = _get_bucket_head_from_bucket_id(branch_id=branch_id, bucket_id=article_root_id) 
-    return _get_data_from_bucket(bucket_id=bucket_head_id)
+    article_root_id, response_code, at_branch, branch_iterations = _get_article_root_id_from_article_name(branch_id=branch_id, name=name, number_of_branches_to_query=NUMBER_OF_BRANCHES_TO_TRAVERSE_ON_QUERY)
+    if response_code!=ARTICLE_FOUND_RESPONSE_CODE:
+        return {
+            "article": encode_string_standard(""), 
+            "response_code": response_code, 
+            "at_branch": at_branch}
+    # FIXME: MUST NOT GET THE HEAD OF THE BUCKET, IF ITS FROM A PARENT BRANCH
+    bucket_head_id, trie_response_code = _get_bucket_head_from_bucket_id(branch_id=at_branch, bucket_id=article_root_id) 
+    if trie_response_code!=TRIE_SUCCESS_CODE:
+        return {
+            "article": encode_string_standard(""), 
+            "response_code": ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR, 
+            "at_branch": at_branch}
+    return {
+        "article": _get_data_from_bucket(bucket_id=bucket_head_id),
+        "response_code": response_code,
+        "at_branch": at_branch}
 
 get_article_from_article_name_schema = {
   "type": "object",
@@ -125,7 +139,14 @@ get_article_from_article_name_schema = {
     "name": {"type": "string", "varint_encoded": "true"}
   },
   "required": ["branch_id", "name"],
-  "response": {"type": "string", "varint_encoded": "true"}
+  "response": {
+    "type": "object",
+    "properties": {
+        "article": {"type": "string", "varint_encoded": "true"},
+        "response_code": {"type": "integer"},
+        "at_branch": {"type": "string", "format": "byte"}
+    },
+  }
 }
 
 def get_article_from_article_id(bucket_id: bytes) -> bytes:

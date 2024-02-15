@@ -14,7 +14,7 @@ def _get_bucket_from_bucket_id(bucket_id: bytes) -> dict:
 def get_bucket_from_bucket_id(bucket_id: bytes) -> dict:
     return _get_bucket_from_bucket_id(bucket_id=bucket_id)
 
-def _get_bucket_head_from_bucket_id(branch_id: bytes, bucket_id: bytes) -> dict:
+def _get_bucket_head_from_bucket_id(branch_id: bytes, bucket_id: bytes):
     branch_dict = inspection_branch._get_branch_data_from_branch_state_id(
         branch_state_id=lakat_storage.get_from_db(branch_id))
     
@@ -24,7 +24,7 @@ def _get_bucket_head_from_bucket_id(branch_id: bytes, bucket_id: bytes) -> dict:
         bucket_root = bucket_id
 
     temp_get_request_token = random.randint(1, 2**32-1)
-    bucket_head_id = trie_storage.get_data_trie(
+    bucket_head_id, response_code = trie_storage.get_data_trie(
         branch_id=branch_id, 
         branch_suffix=branch_dict["ns"], 
         key=bucket_root, 
@@ -33,11 +33,12 @@ def _get_bucket_head_from_bucket_id(branch_id: bytes, bucket_id: bytes) -> dict:
     trie_storage.clear_staged_name_trie_changes(
         branch_id=branch_id, token=temp_get_request_token)
 
-    return bucket_head_id
+    return bucket_head_id, response_code
    
     
 def get_bucket_head_from_bucket_id(branch_id: bytes, bucket_id: bytes, deserialize_bucket: bool) -> dict:
-    bucket_head_id = _get_bucket_head_from_bucket_id(branch_id=branch_id, bucket_id=bucket_id)
+    bucket_head_id, trie_response_code = _get_bucket_head_from_bucket_id(branch_id=branch_id, bucket_id=bucket_id)
+    # TODO: handle trie_response_code
     if not deserialize_bucket:
         return bucket_head_id
     else:

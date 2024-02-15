@@ -12,7 +12,7 @@ from config.encode_cfg import DEFAULT_SUFFIX_CROP, DEV_SUFFIX_CROP, DEFAULT_CODE
 from db.namespaces import (BRANCH_NS, ATOMIC_BUCKET_NS, MOLECULAR_BUCKET_NS, BRANCH_HEAD_NS, SUBMIT_NS, SUBMIT_TRACE_NS)
 from config.bucket_cfg import DEFAULT_ATOMIC_BUCKET_SCHEMA, DEFAULT_MOLECULAR_BUCKET_SCHEMA
 from config.branch_cfg import PROPER_BRANCH_TYPE_ID
-from config.trie_response_cfg import TRIE_SUCCESS_CODE
+from config.response_cfg import TRIE_SUCCESS_CODE
 from lakat.timestamp import getTimestamp
 from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
