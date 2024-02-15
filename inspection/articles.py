@@ -21,12 +21,12 @@ from config.response_cfg import (
     TRIE_ERROR_CODE_NODE_DOES_NOT_HAVE_THIS_CHILD,
     ARTICLE_NOT_FOUND_RESPONSE_CODE, 
     ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR,
-    ARTICLE_FOUND_RESPONSE_CODE)
+    ARTICLE_FOUND_RESPONSE_CODE, 
+    ARTICLE_NOT_FOUND_DB_RESPONSE_BAD)
 from typing import List, Tuple, Mapping
 
 # FIXME: This should be _get_article_root_id_from_article_id
 def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number_of_branches_to_query: int) -> Tuple[bytes, int, bytes, int]:
-
     resp_code_dep_on_trie = lambda x : (ARTICLE_NOT_FOUND_TRIE_LOOKUP_ERROR
                 if x else ARTICLE_NOT_FOUND_RESPONSE_CODE)
     previous_branch_id = branch_id
@@ -34,8 +34,10 @@ def _get_article_root_id_from_article_name(branch_id: bytes, name: bytes, number
     possible_trie_error = False
     parent_name_resolution_id=bytes(0)
     for i in range(number_of_branches_to_query):
-
-        branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=lakat_storage.get_from_db(current_branch_id))
+        branch_state_id = lakat_storage.get_from_db(current_branch_id)
+        if not branch_state_id:
+            return bytes(0), ARTICLE_NOT_FOUND_DB_RESPONSE_BAD, previous_branch_id, i
+        branch_head_data = _get_branch_data_from_branch_state_id(branch_state_id=branch_state_id)
         # consider two cases. 
         # Either the name is in the starting branch or it is in one 
         # of the ancestral branches
@@ -146,6 +148,7 @@ get_article_from_article_name_schema = {
         "response_code": {"type": "integer"},
         "at_branch": {"type": "string", "format": "byte"}
     },
+    "required": ["article", "response_code", "at_branch"]
   }
 }
 
