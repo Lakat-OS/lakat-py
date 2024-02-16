@@ -18,7 +18,7 @@ def prepare_bucket(content_dict: Mapping[str, any], namespace: int) -> bytes:
         refs = content_dict["refs"],
         timestamp = getTimestamp()
     )
-    return make_lakat_cid_and_serialize(content=bucket.__dict__, codec=DEFAULT_CODEC, namespace=namespace, branch_id_1= bytes(0), branch_id_2=bytes(0), crop=0)
+    return make_lakat_cid_and_serialize(content=bucket.__dict__, codec=DEFAULT_CODEC, namespace=namespace, branch_id_1= bytes(0), branch_id_2=bytes(0))
     
 
 def get_bucket_ids_from_order(order: List[Mapping[str,any]], index_to_bucket_id):
