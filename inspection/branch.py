@@ -128,10 +128,12 @@ def _get_full_branch_info_from_branch_state_id(
         value=lakat_storage.get_from_db(branch_data["stable_head"]),
     )
     # add the dereferenced data to the branch "stable_head" data
-    branch_data["stable_head"] = dict(
+    branch_data["submit"] = dict(
+        stable_head_id=branch_data["stable_head"],
         parent_submit_id=branch_data_stable_head["parent_submit_id"],
         submit_msg=branch_data_stable_head["submit_msg"],
     )
+    del branch_data["stable_head"]
     # 3) parse the submit trace
     branch_data_submit_trace = _get_parsed_submit_trace_from_submit_trace_id(
         submit_trace_id=branch_data_stable_head["submit_trace"],
@@ -167,9 +169,9 @@ def get_branch_data_from_branch_id(
             The branch name
         - parent_id: bytes
             The parent branch id
-        - stable_head: dict
+        - submit: dict
             The stable head information dictonary
-        - submit_tract: dict
+        - submit_trace: dict
             The changes made in this submit
         - config: dict
             The branch config dictionary
@@ -209,10 +211,11 @@ def get_branch_data_from_branch_state_id(
 submit_object_schema = {
     "type": "object",
     "properties": {
+        "stable_head_id": {"type": "string", "format": "byte"},  
         "parent_submit_id": {"type": "string", "format": "byte"},
         "submit_msg": {"type": "string", "varint_encoded": "true"}
     },
-    "required": ["parent_submit_id", "submit_msg"],
+    "required": ["stable_head_id", "parent_submit_id", "submit_msg"],
 }
 
 branch_config_schema = {
@@ -257,7 +260,7 @@ get_branch_data_from_branch_id_response_schema = {
         "ns": {"type": "string", "format": "byte"},
         "name": {"type": "string", "varint_encoded": "true"},
         "parent_id": {"type": "string", "format": "byte"},
-        "stable_head": submit_object_schema,
+        "submit": submit_object_schema,
         "config": branch_config_schema,
         "sprouts": {"type": "array"},
         "sprout_selection": {"type": "array"},
@@ -275,7 +278,7 @@ get_branch_data_from_branch_id_response_schema = {
         "ns",
         "name",
         "parent_id",
-        "stable_head",
+        "submit",
         "config",
         "name_resolution",
         "interaction",

@@ -39,7 +39,7 @@ def get_hashlib_algorithm(algorithm):
         return algorithm
     
 def get_multihash(data: bytes):
-    return get_multihash_from_bytes(data=data, crop=_get_cid_crop())
+    return get_multihash_from_bytes(bytes_data=data, crop=_get_cid_crop())
 
 def get_multihash_from_bytes(bytes_data: bytes, crop: int=0):
     return get_multihash_from_bytes_and_algorithm(bytes_data, ALGORITHM, crop=crop)
