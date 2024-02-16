@@ -49,6 +49,29 @@ def create_genesis_branch(branch_type: int, name: str, signature: str, accept_co
 
 
 @dispatcher.add_method
+def create_offspring_branch_at_head(branch_id: str, branch_type: int, name: str, signature: str, accept_conflicts: bool, msg: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, branch_type=branch_type, name=name, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
+    # return call
+    return wrap_rpc_call(
+        function=lakat_branch_functions.create_offspring_branch_at_head,
+        schema=lakat_branch_functions.create_offspring_branch_at_head_schema,
+        kwargs=kwargs)
+
+
+@dispatcher.add_method
+def create_offspring_branch_at_submit(branch_id: str, branch_type: int, name: str, signature: str, accept_conflicts: bool, msg: str):
+    # convert arguments to keyword dictionary
+    kwargs = dict(branch_id=branch_id, branch_type=branch_type, name=name, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
+    # return call
+    return wrap_rpc_call(
+        function=lakat_branch_functions.create_offspring_branch_at_submit,
+        schema=lakat_branch_functions.create_offspring_branch_at_submit_schema,
+        kwargs=kwargs)
+
+
+
+@dispatcher.add_method
 def submit_content_to_twig(branch_id: str, contents: any, public_key: str, proof: str, msg: str):
     # convert arguments to keyword dictionary
     kwargs = dict(branch_id=branch_id, contents=contents, public_key=public_key, proof=proof, msg=msg)

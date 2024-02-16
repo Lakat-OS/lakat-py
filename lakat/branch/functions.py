@@ -9,6 +9,7 @@ from utils.encode.hashing import (
     scramble_id, 
     serialize, 
     deserialize, 
+    deserialize_from_key,
     make_suffix_from_branch_ids)
 from utils.encode.language import encode_string
 from config.env import DEV_ENVIRONMENT
@@ -17,7 +18,7 @@ from db.namespaces import (BRANCH_NS, BRANCH_HEAD_NS, DATA_TRIE_NS, NAME_RESOLUT
 from lakat.timestamp import getTimestamp
 # from typing import Mapping, Optional, Tuple, Union, List
 from lakat.check import check_inputs
-from lakat.storage.local_storage import (stage_to_db, stage_many_to_db, commit_to_db)
+from lakat.storage.local_storage import (stage_to_db, stage_many_to_db, commit_to_db, get_from_db)
 from lakat.storage.trie_storage import (
     create_data_trie, create_interaction_trie, create_name_trie,
     stage_data_trie, stage_interaction_trie, stage_name_trie,
@@ -27,19 +28,30 @@ from lakat.storage.branch_storage import add_branch_to_local_storage
 
     
 
+# for create genesis branch 
+# parent_id = bytes(0)
+# parent_submit_id = bytes(0)
 
-def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accept_conflicts: bool, msg: bytes):
+# for create proper offspring branch
+# parent branch must also be proper branch / no actually doesnt matter
+
+# for create twig offspring branch
+
+def _create_branch(
+        branch_type: int, 
+        parent_branch_id: bytes, 
+        parent_submit_id: bytes, 
+        parent_data_trie_id: bytes,
+        parent_name_resolution_id: bytes,
+        parent_interaction_id: bytes,
+        name: bytes, 
+        signature: bytes, 
+        accept_conflicts: bool, 
+        msg: bytes):
 
     ## CHECK INPUT TYPES
-    check_inputs("create_genesis_branch", 
-        branch_type=branch_type, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
-    
-
-    ## DEFINE PARENT ID
-    parent_id = bytes(0)
-
-    ## DEFINE PARENT SUBMIT ID
-    parent_submit_id = bytes(0)
+    # check_inputs("create_genesis_branch", 
+    #     branch_type =branch_type, signature=signature, accept_conflicts=accept_conflicts, msg=msg)
 
 
     # submit trace dict
@@ -59,12 +71,6 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
         sprouts=[],
         sproutSelectionTrace=[])
 
-    ## DEFINE SUFFIX CROP
-    if DEV_ENVIRONMENT in ["DEV", "LOCAL"]:
-        suffix_crop = DEV_SUFFIX_CROP
-    else:
-        suffix_crop = DEFAULT_SUFFIX_CROP
-
     ## DEFINE TIMESTAMP
     creation_ts = getTimestamp()
 
@@ -72,10 +78,11 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     trie_token = random.randint(1, 2**32-1)
 
     ## FIRST CREATE BRANCH PARAMS USED FOR BRANCH ID
-    branch_params = dict(parent_id=parent_id, creation_ts=creation_ts, signature=signature)
+    branch_params = dict(parent_id=parent_branch_id, creation_ts=creation_ts, signature=signature)
     # create branch id
-    branch_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_NS, branch_id_1=bytes(0), branch_id_2=parent_id, crop=suffix_crop)
-    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=parent_id, crop=suffix_crop)
+    branch_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_NS, branch_id_1=bytes(0), branch_id_2=parent_branch_id)
+    # note that in the creation of the branch_id, neither branch_id_1 nor branch_id_2 are used
+    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=parent_branch_id)
     # add to db backlog
     stage_to_db(branch_id, branch_head_id)
     # add to submit_trace_backlog
@@ -84,7 +91,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
 
     # create namespace and add branch id and namespace to branch params
     # scrambled_id = scramble_id(branch_id)
-    branch_suffix = make_suffix_from_branch_ids(branch_id_1=branch_id, branch_id_2=parent_id, crop=suffix_crop)
+    branch_suffix = make_suffix_from_branch_ids(branch_id_1=branch_id, branch_id_2=parent_branch_id)
     branch_params.update(dict(id=branch_id, ns=branch_suffix))
 
     ## CREATE BRANCH NAME
@@ -127,7 +134,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     branch_params.update(dict(name_resolution=name_res_root))
 
     # CREATE PARENT NAME RESOLUTION ENTRIES
-    branch_params.update(dict(parent_name_resolution=bytes(0)))
+    branch_params.update(dict(parent_name_resolution=parent_name_resolution_id))
 
     # CREATE SOCIAL INTERACTIONS ENTRIES
     create_interaction_trie(branch_id=branch_id, branch_suffix=branch_suffix, token=trie_token, fetch_root=False)
@@ -138,7 +145,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     branch_params.update(dict(interaction=social_root))
 
     # CREATE PARENT INTERACTIONS ENTRIES
-    branch_params.update(dict(parent_interaction=bytes(0)))
+    branch_params.update(dict(parent_interaction=parent_interaction_id))
 
     # CREATE SUBMIT TRACE
     submit_trace = SUBMIT_TRACE(**submit_trace_dict)
@@ -155,7 +162,7 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     data_trie_root, data_trie_content = stage_data_trie_root(branch_id=branch_id, token=trie_token)
 
     # CREATE PARENT DATA TRIE
-    branch_params.update(dict(parent_data_trie=bytes(0)))
+    branch_params.update(dict(parent_data_trie=parent_data_trie_id))
 
 
     # CREATE SUBMIT
@@ -195,6 +202,25 @@ def create_genesis_branch(branch_type: int, name: bytes, signature: bytes, accep
     return branch_id
 
 
+def create_genesis_branch(
+        branch_type: int, 
+        name: bytes, 
+        signature: bytes, 
+        accept_conflicts: bool, 
+        msg: bytes) -> bytes:
+    return _create_branch(
+        branch_type=branch_type, 
+        parent_branch_id=bytes(0), 
+        parent_submit_id=bytes(0), 
+        parent_data_trie_id=bytes(0),
+        parent_name_resolution_id=bytes(0),
+        parent_interaction_id=bytes(0),
+        name=name, 
+        signature=signature, 
+        accept_conflicts=accept_conflicts, 
+        msg=msg)
+
+
 create_genesis_branch_schema = {
     "type": "object",
     "properties": {
@@ -208,3 +234,81 @@ create_genesis_branch_schema = {
     "response": {"type": "string", "format": "byte"}  # base64-encoded bytes
 }
 
+
+def create_offspring_branch_at_submit(
+        branch_type: int, 
+        parent_branch_id: bytes, 
+        parent_submit_id: bytes, 
+        name: bytes, 
+        signature: bytes, 
+        accept_conflicts: bool, 
+        msg: bytes) -> bytes:
+    # retrieve the parent_data_trie_id, parent_name_resolution_id, parent_interaction_id
+    # at the parent_submit_id
+    submit = deserialize_from_key(key=parent_submit_id, value=get_from_db(parent_submit_id))
+    submit_trace_serialized = submit["submit_trace"]
+    submit_trace = deserialize_from_key(key=submit_trace_serialized,
+        value=get_from_db(submit_trace_serialized))    
+
+    return _create_branch(
+        branch_type=branch_type, 
+        parent_branch_id=parent_branch_id, 
+        parent_submit_id=parent_submit_id, 
+        parent_data_trie_id=submit["trie_root"],
+        parent_name_resolution_id=submit_trace["socialRoot"],
+        parent_interaction_id=submit_trace["nameResolutionRoot"],
+        name=name, 
+        signature=signature, 
+        accept_conflicts=accept_conflicts, 
+        msg=msg)
+
+
+create_offspring_branch_at_submit_schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "varint_encoded": "true"},
+        "branch_type": {"type": "integer"},
+        "parent_branch_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "parent_submit_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "signature": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "accept_conflicts": {"type": "boolean"},
+        "msg": {"type": "string", "varint_encoded": "true"}
+    },
+    "required": ["branch_type", "parent_branch_id", "parent_submit_id", "name", "signature", "accept_conflicts", "msg"],
+    "response": {"type": "string", "format": "byte"}  # base64-encoded bytes
+}
+
+def create_offspring_branch_at_head(
+        branch_type: int, 
+        parent_branch_id: bytes, 
+        name: bytes, 
+        signature: bytes, 
+        accept_conflicts: bool, 
+        msg: bytes) -> bytes:
+    # retrieve the parent_data_trie_id, parent_name_resolution_id, parent_interaction_id
+    # at the parent_submit_id
+    parent_branch_head_id = get_from_db(parent_branch_id)
+    parent_branch_data = deserialize_from_key(key=parent_branch_head_id, value=get_from_db(parent_branch_head_id))
+    return create_offspring_branch_at_submit(
+        branch_type=branch_type,
+        parent_branch_id=parent_branch_id,
+        parent_submit_id=parent_branch_data["stable_head"],
+        name=name,
+        signature=signature,
+        accept_conflicts=accept_conflicts,
+        msg=msg)
+
+
+create_offspring_branch_at_head_schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "varint_encoded": "true"},
+        "branch_type": {"type": "integer"},
+        "parent_branch_id": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "signature": {"type": "string", "format": "byte"},  # base64-encoded bytes
+        "accept_conflicts": {"type": "boolean"},
+        "msg": {"type": "string", "varint_encoded": "true"}
+    },
+    "required": ["branch_type", "parent_branch_id", "name", "signature", "accept_conflicts", "msg"],
+    "response": {"type": "string", "format": "byte"}  # base64-encoded bytes
+}

@@ -81,7 +81,7 @@ def submit_content_for_twig(branch_id: bytes, contents: any, public_key: bytes, 
     branch_params_for_head = dict(parent_id=branch_dict["parent_id"], creation_ts=creation_ts, signature=branch_dict["signature"])
     branch_params = deepcopy(branch_params_for_head)
     # create branch id
-    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params_for_head, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=branch_dict["parent_id"], crop=suffix_crop)
+    branch_head_id, _ = make_lakat_cid_and_serialize(content=branch_params_for_head, codec=DEFAULT_CODEC, namespace=BRANCH_HEAD_NS, branch_id_1=branch_id, branch_id_2=branch_dict["parent_id"])
     # create namespace and add branch id and namespace to branch params and update branch config, too
     branch_params.update(dict(id=branch_id, ns=branch_dict["ns"], config=branch_dict["config"]))
     # add to db backlog
