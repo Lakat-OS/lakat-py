@@ -1,3 +1,8 @@
+"""
+This module provides functions for creating and managing branches in the Lakat system.
+It includes functionality for creating genesis branches and offspring branches.
+"""
+
 import random
 from interfaces.submit import SUBMIT, SUBMIT_TRACE
 from interfaces.config import CONFIG
@@ -48,6 +53,27 @@ def _create_branch(
         signature: bytes, 
         accept_conflicts: bool, 
         msg: bytes):
+    """
+    Internal helper function to create a branch with specified parameters.
+    
+    This function handles the common branch creation logic for both genesis and offspring branches.
+    It creates all necessary data structures, including branch parameters, config, tries, and submit data.
+    
+    Parameters:
+        branch_type (int): Type of branch to create
+        parent_branch_id (bytes): ID of the parent branch (bytes(0) for genesis branch)
+        parent_submit_id (bytes): ID of the parent submit (bytes(0) for genesis branch)
+        parent_data_trie_id (bytes): ID of the parent data trie
+        parent_name_resolution_id (bytes): ID of the parent name resolution
+        parent_interaction_id (bytes): ID of the parent interaction
+        name (bytes): Name of the branch
+        signature (bytes): Signature for the branch creation
+        accept_conflicts (bool): Whether conflicts are accepted in this branch
+        msg (bytes): Message describing the branch creation
+        
+    Returns:
+        bytes: The ID of the newly created branch
+    """
 
     ## CHECK INPUT TYPES
     # check_inputs("create_genesis_branch", 
@@ -208,6 +234,21 @@ def create_genesis_branch(
         signature: bytes, 
         accept_conflicts: bool, 
         msg: bytes) -> bytes:
+    """
+    Create a genesis branch (the first branch with no parent).
+    
+    A genesis branch is the root branch in a tree of branches, with no parent.
+    
+    Parameters:
+        branch_type (int): Type of branch to create
+        name (bytes): Name of the branch
+        signature (bytes): Signature for the branch creation
+        accept_conflicts (bool): Whether conflicts are accepted in this branch
+        msg (bytes): Message describing the branch creation
+        
+    Returns:
+        bytes: The ID of the newly created genesis branch
+    """
     return _create_branch(
         branch_type=branch_type, 
         parent_branch_id=bytes(0), 
@@ -243,6 +284,24 @@ def create_offspring_branch_at_submit(
         signature: bytes, 
         accept_conflicts: bool, 
         msg: bytes) -> bytes:
+    """
+    Create a new branch from a specific submit point of an existing branch.
+    
+    This function creates an offspring branch that branches off from a particular
+    submit point in the parent branch history, rather than from the head.
+    
+    Parameters:
+        branch_type (int): Type of branch to create
+        parent_branch_id (bytes): ID of the parent branch
+        parent_submit_id (bytes): ID of the specific submit point to branch from
+        name (bytes): Name of the branch
+        signature (bytes): Signature for the branch creation
+        accept_conflicts (bool): Whether conflicts are accepted in this branch
+        msg (bytes): Message describing the branch creation
+        
+    Returns:
+        bytes: The ID of the newly created offspring branch
+    """
     # retrieve the parent_data_trie_id, parent_name_resolution_id, parent_interaction_id
     # at the parent_submit_id
     submit = deserialize_from_key(key=parent_submit_id, value=get_from_db(parent_submit_id))
@@ -285,6 +344,23 @@ def create_offspring_branch_at_head(
         signature: bytes, 
         accept_conflicts: bool, 
         msg: bytes) -> bytes:
+    """
+    Create a new branch from the current head of an existing branch.
+    
+    This is a convenience function that creates an offspring branch from the latest
+    submit in the parent branch (the branch head).
+    
+    Parameters:
+        branch_type (int): Type of branch to create
+        parent_branch_id (bytes): ID of the parent branch
+        name (bytes): Name of the branch
+        signature (bytes): Signature for the branch creation
+        accept_conflicts (bool): Whether conflicts are accepted in this branch
+        msg (bytes): Message describing the branch creation
+        
+    Returns:
+        bytes: The ID of the newly created offspring branch
+    """
     # retrieve the parent_data_trie_id, parent_name_resolution_id, parent_interaction_id
     # at the parent_submit_id
     parent_branch_head_id = get_from_db(parent_branch_id)
